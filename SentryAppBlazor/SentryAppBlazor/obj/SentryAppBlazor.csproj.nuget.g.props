@@ -13,7 +13,7 @@
     <SourceRoot Include="C:\Users\Eric Salalima\.nuget\packages\" />
     <SourceRoot Include="C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <PkgMicrosoft_AspNetCore_Components_WebAssembly_Server Condition=" '$(PkgMicrosoft_AspNetCore_Components_WebAssembly_Server)' == '' ">C:\Users\Eric Salalima\.nuget\packages\microsoft.aspnetcore.components.webassembly.server\8.0.29</PkgMicrosoft_AspNetCore_Components_WebAssembly_Server>
-  </PropertyGroup>
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.10\build\Microsoft.AspNetCore.App.Internal.Assets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.10\build\Microsoft.AspNetCore.App.Internal.Assets.props')" />
+  </ImportGroup>
 </Project>
