@@ -1,7 +1,85 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
+@implements IDisposable
+@inject MonitoringState Monitor
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Sentry · Turnstile Monitor</PageTitle>
 
-<h1>Hello, world!</h1>
+<header class="monitor-header">
+    <a class="brand" href="/" aria-label="Sentry monitoring home">
+        <span class="brand-mark">DGL</span>
+        <span><strong>DR. GLORIA D. LACSON</strong><small>FOUNDATION COLLEGES</small></span>
+    </a>
+    <div class="header-center">
+        <span class="eyebrow">TURNSTILE MONITORING SYSTEM</span>
+        <strong>All campus gates</strong>
+    </div>
+    <div class="header-actions">
+        <span class="status-pill @(Monitor.IsRunning ? "online" : "")"><i></i>@Monitor.Status</span>
+        <button class="control-button" @onclick="Toggle" title="@(Monitor.IsRunning ? "Stop monitoring" : "Start monitoring")">
+            <span aria-hidden="true">@(Monitor.IsRunning ? "■" : "▶")</span> @(Monitor.IsRunning ? "Stop" : "Play")
+        </button>
+        <a class="icon-button" href="settings" title="Monitoring settings" aria-label="Monitoring settings">⚙</a>
+    </div>
+</header>
 
-Welcome to your new app.
+<section class="summary-strip" aria-label="Monitoring summary">
+    <div><span class="pulse-dot"></span><span><small>SYSTEM</small><b>@Monitor.Status</b></span></div>
+    <div><small>MONITORED DEVICE</small><b>All Devices</b></div>
+    <div><small>SESSION EVENTS</small><b>@(Monitor.Recent.Count + (Monitor.Spotlight is null ? 0 : 1))</b></div>
+    <div class="clock"><small>LOCAL TIME</small><b>@DateTime.Now.ToString("HH:mm")</b></div>
+</section>
+
+<div class="monitor-grid">
+    <section class="recent-panel">
+        <div class="section-heading"><div><span class="eyebrow">LIVE HISTORY</span><h1>Recent Activity</h1></div><span class="count">@Monitor.Recent.Count events</span></div>
+        @if (Monitor.Recent.Count == 0)
+        {
+            <div class="empty-state"><span>↕</span><h2>No recent activity</h2><p>Completed access events will appear here.</p></div>
+        }
+        else
+        {
+            <div class="event-list">
+            @foreach (var item in Monitor.Recent)
+            {
+                <article class="event-row">
+                    <img src="@Photo(item.PhotoId)" alt="Portrait of @item.PersonnelName" />
+                    <div class="event-person"><strong>@item.PersonnelName</strong><small>@item.PersonnelId · @item.DeviceName</small></div>
+                    <span class="direction @item.Direction.ToString().ToLowerInvariant()">@(item.Direction == AccessDirection.Entry ? "IN" : "OUT")</span>
+                    <time>@item.Timestamp.ToString("h:mm:ss tt")</time>
+                </article>
+            }
+            </div>
+        }
+    </section>
+
+    <section class="spotlight-panel">
+        <div class="section-heading"><div><span class="eyebrow">CURRENT EVENT</span><h2>Spotlight</h2></div><span class="live-label"><i></i> LIVE</span></div>
+        @if (Monitor.Spotlight is { } current)
+        {
+            <div class="spotlight-card">
+                <div class="photo-frame"><img src="@Photo(current.PhotoId)" alt="Portrait of @current.PersonnelName" /><span class="direction @current.Direction.ToString().ToLowerInvariant()">@(current.Direction == AccessDirection.Entry ? "ENTRY" : "EXIT")</span></div>
+                <div class="spotlight-copy">
+                    <span class="eyebrow">ACCESS CONFIRMED</span>
+                    <h2>@current.PersonnelName</h2>
+                    <p class="person-id">Personnel ID · @current.PersonnelId</p>
+                    <dl><div><dt>DEVICE</dt><dd>@current.DeviceName</dd></div><div><dt>DATE</dt><dd>@current.Timestamp.ToString("MMM dd, yyyy")</dd></div><div><dt>TIME</dt><dd>@current.Timestamp.ToString("h:mm:ss tt")</dd></div></dl>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="waiting-card"><div class="radar"><span>↕</span></div><span class="eyebrow">READY TO MONITOR</span><h2>@(Monitor.IsRunning ? "Waiting for turnstile logs" : "Monitoring is paused")</h2><p>@(Monitor.IsRunning ? "The next access event will appear here automatically." : "Select Play to begin the secure demo event stream.")</p></div>
+        }
+    </section>
+</div>
+
+<footer><span>SENTRY MONITOR · SECURE CAMPUS OPERATIONS</span><span>Photos are served through a protected endpoint · <b>DEMO ENVIRONMENT</b></span></footer>
+
+@code {
+    protected override void OnInitialized() => Monitor.Changed += Refresh;
+    private void Toggle() { if (Monitor.IsRunning) Monitor.Stop(); else Monitor.Start(); }
+    private string Photo(string id) => $"/photos/{Uri.EscapeDataString(id)}";
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Monitor.Changed -= Refresh;
+}
