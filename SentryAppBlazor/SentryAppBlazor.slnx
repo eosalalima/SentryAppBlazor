@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="SentryAppBlazor.Client/SentryAppBlazor.Client.csproj" />
   <Project Path="SentryAppBlazor/SentryAppBlazor.csproj" />
 </Solution>
