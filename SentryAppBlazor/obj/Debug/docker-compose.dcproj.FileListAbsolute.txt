@@ -1,0 +1,13 @@
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.deps.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.runtimeconfig.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\appsettings.Development.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\appsettings.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\config.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.staticwebassets.runtime.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.staticwebassets.endpoints.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.exe
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.dll
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\bin\Debug\SentryAppBlazor.pdb
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\obj\Debug\docker-compose.dcproj.AssemblyReference.cache
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\obj\Debug\docker-compose.dcproj.CoreCompileInputs.cache
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\obj\Debug\docker-c.35A3FFBA.Up2Date
