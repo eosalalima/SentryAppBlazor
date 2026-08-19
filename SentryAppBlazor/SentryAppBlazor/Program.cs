@@ -3,10 +3,12 @@ using SentryAppBlazor.Components;
 using SentryAppBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("config.json", optional: true, reloadOnChange: true);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddOptions<MonitoringOptions>()
     .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))
     .ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddSingleton<MonitoringSettingsStore>();
 builder.Services.AddSingleton<MonitoringState>();
 builder.Services.AddSingleton<PhotoService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MonitoringState>());

@@ -17,4 +17,21 @@ public sealed class MonitoringOptions
     [RegularExpression("^COM[1-9][0-9]*$")] public string SmsComPort { get; set; } = "COM4";
     [Range(5, 120)] public int SmsTimeoutSeconds { get; set; } = 30;
     [Range(0, 5)] public int SmsRetryCount { get; set; } = 2;
+
+    public MonitoringOptions Clone() => new()
+    {
+        OperatingMode = OperatingMode,
+        DeviceId = DeviceId,
+        PhotosPath = PhotosPath,
+        PollingInterval = PollingInterval,
+        HighlightDisplayDuration = HighlightDisplayDuration,
+        FeedRetentionDuration = FeedRetentionDuration,
+        LookbackSecondsOnStart = LookbackSecondsOnStart,
+        MaxRowsPerPoll = MaxRowsPerPoll,
+        SmsEnabled = SmsEnabled,
+        SmsComPort = SmsComPort,
+        SmsTimeoutSeconds = SmsTimeoutSeconds,
+        SmsRetryCount = SmsRetryCount
+    };
+
 }

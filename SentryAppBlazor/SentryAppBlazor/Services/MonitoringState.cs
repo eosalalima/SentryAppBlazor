@@ -4,7 +4,7 @@ using SentryAppBlazor.Models;
 
 namespace SentryAppBlazor.Services;
 
-public sealed class MonitoringState(IOptions<MonitoringOptions> options, ILogger<MonitoringState> logger) : BackgroundService
+public sealed class MonitoringState(IOptionsMonitor<MonitoringOptions> options, ILogger<MonitoringState> logger) : BackgroundService
 {
     private readonly ConcurrentQueue<AccessEvent> queue = new();
     private readonly List<(AccessEvent Event, DateTimeOffset Expires)> recent = [];
@@ -23,9 +23,9 @@ public sealed class MonitoringState(IOptions<MonitoringOptions> options, ILogger
     {
         if (requested) return;
         requested = true;
-        Status = options.Value.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase)
+        Status = options.CurrentValue.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase)
             ? "Demo Mode Active" : "Live Mode Unavailable — schema mapping required";
-        logger.LogInformation("Monitoring requested in {OperatingMode}", options.Value.OperatingMode);
+        logger.LogInformation("Monitoring requested in {OperatingMode}", options.CurrentValue.OperatingMode);
         Notify();
     }
 
@@ -54,7 +54,7 @@ public sealed class MonitoringState(IOptions<MonitoringOptions> options, ILogger
         var lastGenerated = DateTimeOffset.MinValue;
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (requested && options.Value.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase)
+            if (requested && options.CurrentValue.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase)
                 && DateTimeOffset.UtcNow - lastGenerated > TimeSpan.FromSeconds(7))
             {
                 lastGenerated = DateTimeOffset.UtcNow;
@@ -65,9 +65,9 @@ public sealed class MonitoringState(IOptions<MonitoringOptions> options, ILogger
             {
                 Spotlight = next;
                 Notify();
-                await Task.Delay(options.Value.HighlightDisplayDuration, stoppingToken);
+                await Task.Delay(options.CurrentValue.HighlightDisplayDuration, stoppingToken);
                 lock (gate)
-                    recent.Add((next, DateTimeOffset.UtcNow.AddMilliseconds(options.Value.FeedRetentionDuration)));
+                    recent.Add((next, DateTimeOffset.UtcNow.AddMilliseconds(options.CurrentValue.FeedRetentionDuration)));
                 Spotlight = null;
                 Notify();
             }
