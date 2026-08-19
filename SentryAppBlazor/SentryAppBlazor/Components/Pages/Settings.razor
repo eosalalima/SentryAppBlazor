@@ -36,7 +36,7 @@
         </section>
         <div class="settings-actions">
             <button type="submit" class="control-button">Apply</button>
-            <button type="button" class="control-button" @onclick="Cancel">Cancel</button>
+            <button type="button" class="secondary-button" @onclick="Cancel">Cancel</button>
             @if (!string.IsNullOrWhiteSpace(Message))
             {
                 <span class="save-message">@Message</span>
