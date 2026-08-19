@@ -1,0 +1,6 @@
+services:
+  sentryappblazor:
+    image: ${DOCKER_REGISTRY-}sentryappblazor
+    build:
+      context: SentryAppBlazor
+      dockerfile: Dockerfile

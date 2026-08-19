@@ -24,8 +24,6 @@ F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlaz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\xvbkipsu47-{0}-bpk8xqwxhs-bpk8xqwxhs.gz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\c4lxz9rkfj-{0}-8inm30yfxf-8inm30yfxf.gz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\xp3z2md19v-{0}-rttp26jz0r-rttp26jz0r.gz
-F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\rukrlw7qbc-{0}-f7fxoh55ae-f7fxoh55ae.gz
-F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\k2pdjdl6d9-{0}-68qhiysw0j-68qhiysw0j.gz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\staticwebassets.build.json
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\staticwebassets.build.json.cache
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\staticwebassets.development.json
@@ -37,3 +35,5 @@ F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlaz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\SentryAppBlazor.pdb
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\SentryAppBlazor.genruntimeconfig.cache
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\ref\SentryAppBlazor.dll
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\rukrlw7qbc-{0}-wyu7y4jcvb-wyu7y4jcvb.gz
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Debug\net10.0\compressed\k2pdjdl6d9-{0}-wfr2hj6447-wfr2hj6447.gz

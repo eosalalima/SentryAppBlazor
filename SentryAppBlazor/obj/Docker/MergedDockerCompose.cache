@@ -1,0 +1,44 @@
+name: dockercompose15211372472812459687
+services:
+  sentryappblazor:
+    build:
+      context: F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ASPNETCORE_HTTPS_PORTS: "8081"
+    image: sentryappblazor
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8080
+        protocol: tcp
+      - mode: ingress
+        target: 8081
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: C:\Users\Eric Salalima\AppData\Roaming/Microsoft/UserSecrets
+        target: C:\Users\ContainerUser\AppData\Roaming\Microsoft\UserSecrets
+        read_only: true
+        bind: {}
+      - type: bind
+        source: C:\Users\Eric Salalima\AppData\Roaming/Microsoft/UserSecrets
+        target: C:\Users\ContainerAdministrator\AppData\Roaming\Microsoft\UserSecrets
+        read_only: true
+        bind: {}
+      - type: bind
+        source: C:\Users\Eric Salalima\AppData\Roaming/ASP.NET/Https
+        target: C:\Users\ContainerUser\AppData\Roaming\ASP.NET\Https
+        read_only: true
+        bind: {}
+      - type: bind
+        source: C:\Users\Eric Salalima\AppData\Roaming/ASP.NET/Https
+        target: C:\Users\ContainerAdministrator\AppData\Roaming\ASP.NET\Https
+        read_only: true
+        bind: {}
+networks:
+  default:
+    name: dockercompose15211372472812459687_default

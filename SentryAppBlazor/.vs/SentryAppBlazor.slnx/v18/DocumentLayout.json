@@ -1,7 +1,16 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{9BEB52BF-369C-DADA-28C5-232281438237}|SentryAppBlazor\\SentryAppBlazor.csproj|f:\\projects\\dr. gloria d lacson school\\application\\sentryappblazor\\sentryappblazor\\sentryappblazor\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{9BEB52BF-369C-DADA-28C5-232281438237}|SentryAppBlazor\\SentryAppBlazor.csproj|solutionrelative:sentryappblazor\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{81DDED9D-158B-E303-5F62-77A2896D2A5A}|docker-compose.dcproj|f:\\projects\\dr. gloria d lacson school\\application\\sentryappblazor\\sentryappblazor\\docker-compose.dcproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{81DDED9D-158B-E303-5F62-77A2896D2A5A}|docker-compose.dcproj|solutionrelative:docker-compose.dcproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -9,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": -1,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Bookmark",
@@ -18,6 +27,32 @@
             {
               "$type": "Bookmark",
               "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "docker-compose.dcproj",
+              "DocumentMoniker": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\docker-compose.dcproj",
+              "RelativeDocumentMoniker": "docker-compose.dcproj",
+              "ToolTip": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\docker-compose.dcproj",
+              "RelativeToolTip": "docker-compose.dcproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-08-19T05:19:54.628Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Dockerfile",
+              "DocumentMoniker": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor\\Dockerfile",
+              "RelativeDocumentMoniker": "SentryAppBlazor\\Dockerfile",
+              "ToolTip": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor\\Dockerfile",
+              "RelativeToolTip": "SentryAppBlazor\\Dockerfile",
+              "ViewState": "AgIAAAsAAAAAAAAAAAAgwBAAAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-08-14T13:40:22.019Z",
+              "EditorCaption": ""
             }
           ]
         }

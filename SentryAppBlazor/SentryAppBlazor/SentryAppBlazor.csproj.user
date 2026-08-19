@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <ActiveDebugProfile>https</ActiveDebugProfile>
+    <ActiveDebugProfile>Container (Dockerfile)</ActiveDebugProfile>
+    <NameOfLastUsedPublishProfile>F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\Properties\PublishProfiles\registry.hub.docker.com_eosalalima%40gmail.com.pubxml</NameOfLastUsedPublishProfile>
   </PropertyGroup>
 </Project>

@@ -1,0 +1,7 @@
+C:\publish\SentryApp\SentryAppBlazor.exe
+C:\publish\SentryApp\appsettings.Development.json
+C:\publish\SentryApp\appsettings.json
+C:\publish\SentryApp\SentryAppBlazor.dll
+C:\publish\SentryApp\SentryAppBlazor.runtimeconfig.json
+C:\publish\SentryApp\SentryAppBlazor.pdb
+C:\publish\SentryApp\SentryAppBlazor.deps.json

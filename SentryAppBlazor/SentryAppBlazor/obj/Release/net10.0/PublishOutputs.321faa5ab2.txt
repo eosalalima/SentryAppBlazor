@@ -1,0 +1,7 @@
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\SentryAppBlazor.exe
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\appsettings.Development.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\appsettings.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\SentryAppBlazor.dll
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\SentryAppBlazor.runtimeconfig.json
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\SentryAppBlazor.pdb
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Docker\publish\SentryAppBlazor.deps.json

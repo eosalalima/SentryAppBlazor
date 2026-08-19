@@ -11,10 +11,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("d0874673-1241-431b-bcd3-6f236333be08")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9c76191311ad4610e7b745a58804b538595b2a51")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f5a6fb6f466498c0b82a36fb8108e48ccd11db87")]
 [assembly: System.Reflection.AssemblyProductAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

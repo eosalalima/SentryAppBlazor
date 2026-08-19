@@ -2,7 +2,7 @@
   "version": 4,
   "targets": {
     "net10.0": {
-      "Microsoft.AspNetCore.App.Internal.Assets/10.0.10": {
+      "Microsoft.AspNetCore.App.Internal.Assets/10.0.11": {
         "type": "package",
         "build": {
           "build/Microsoft.AspNetCore.App.Internal.Assets.props": {},
@@ -11,14 +11,21 @@
         "buildMultiTargeting": {
           "buildMultiTargeting/Microsoft.AspNetCore.App.Internal.Assets.targets": {}
         }
+      },
+      "Microsoft.VisualStudio.Azure.Containers.Tools.Targets/1.24.1-preview.1": {
+        "type": "package",
+        "build": {
+          "build/Microsoft.VisualStudio.Azure.Containers.Tools.Targets.props": {},
+          "build/Microsoft.VisualStudio.Azure.Containers.Tools.Targets.targets": {}
+        }
       }
     }
   },
   "libraries": {
-    "Microsoft.AspNetCore.App.Internal.Assets/10.0.10": {
-      "sha512": "8k0KoYKvNrSqP8E3oDJMBVKavlTEE6BacdLGtEDcxv9Hz0XxWFkD6JdLJsxXUlGeAfZ6YfvWmxKenl73qeCTSA==",
+    "Microsoft.AspNetCore.App.Internal.Assets/10.0.11": {
+      "sha512": "tYYYBZsuF2DSz1I3hcfB8qC4nNekIKufkYZOJ2R28fNK3PkS7fJao/mIX5H84NH94UACZQ4dhvt8GDlkrJFwLg==",
       "type": "package",
-      "path": "microsoft.aspnetcore.app.internal.assets/10.0.10",
+      "path": "microsoft.aspnetcore.app.internal.assets/10.0.11",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -34,14 +41,95 @@
         "build/Microsoft.AspNetCore.App.Internal.Assets.targets",
         "buildMultiTargeting/Microsoft.AspNetCore.App.Internal.Assets.targets",
         "buildTransitive/Microsoft.AspNetCore.App.Internal.Assets.targets",
-        "microsoft.aspnetcore.app.internal.assets.10.0.10.nupkg.sha512",
+        "microsoft.aspnetcore.app.internal.assets.10.0.11.nupkg.sha512",
         "microsoft.aspnetcore.app.internal.assets.nuspec"
+      ]
+    },
+    "Microsoft.VisualStudio.Azure.Containers.Tools.Targets/1.24.1-preview.1": {
+      "sha512": "C8feSVA3/f2LyLRcPoKv4pxWzpk2LKlEva4ydXszq6aA+p5/qxtM934XviHbZD0tJWyYmeOXtMxioAtBPxVbdQ==",
+      "type": "package",
+      "path": "microsoft.visualstudio.azure.containers.tools.targets/1.24.1-preview.1",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "CHANGELOG.md",
+        "EULA.md",
+        "ThirdPartyNotices.txt",
+        "build/Container.props",
+        "build/Container.targets",
+        "build/Microsoft.VisualStudio.Azure.Containers.Tools.Targets.props",
+        "build/Microsoft.VisualStudio.Azure.Containers.Tools.Targets.targets",
+        "build/Rules/GeneralBrowseObject.xaml",
+        "build/Rules/cs-CZ/GeneralBrowseObject.xaml",
+        "build/Rules/de-DE/GeneralBrowseObject.xaml",
+        "build/Rules/es-ES/GeneralBrowseObject.xaml",
+        "build/Rules/fr-FR/GeneralBrowseObject.xaml",
+        "build/Rules/it-IT/GeneralBrowseObject.xaml",
+        "build/Rules/ja-JP/GeneralBrowseObject.xaml",
+        "build/Rules/ko-KR/GeneralBrowseObject.xaml",
+        "build/Rules/pl-PL/GeneralBrowseObject.xaml",
+        "build/Rules/pt-BR/GeneralBrowseObject.xaml",
+        "build/Rules/ru-RU/GeneralBrowseObject.xaml",
+        "build/Rules/tr-TR/GeneralBrowseObject.xaml",
+        "build/Rules/zh-CN/GeneralBrowseObject.xaml",
+        "build/Rules/zh-TW/GeneralBrowseObject.xaml",
+        "build/ToolsTarget.props",
+        "build/ToolsTarget.targets",
+        "icon.png",
+        "microsoft.visualstudio.azure.containers.tools.targets.1.24.1-preview.1.nupkg.sha512",
+        "microsoft.visualstudio.azure.containers.tools.targets.nuspec",
+        "tools/Microsoft.VisualStudio.Containers.Tools.Common.dll",
+        "tools/Microsoft.VisualStudio.Containers.Tools.Shared.dll",
+        "tools/Microsoft.VisualStudio.Containers.Tools.Tasks.dll",
+        "tools/Newtonsoft.Json.dll",
+        "tools/System.Security.Principal.Windows.dll",
+        "tools/cs/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/cs/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/cs/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/de/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/de/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/de/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/es/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/es/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/es/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/fr/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/fr/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/fr/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/it/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/it/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/it/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/ja/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/ja/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/ja/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/ko/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/ko/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/ko/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/pl/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/pl/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/pl/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/pt-BR/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/pt-BR/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/pt-BR/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/ru/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/ru/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/ru/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/tr/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/tr/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/tr/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/zh-Hans/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/zh-Hans/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/zh-Hans/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll",
+        "tools/zh-Hant/Microsoft.VisualStudio.Containers.Tools.Common.resources.dll",
+        "tools/zh-Hant/Microsoft.VisualStudio.Containers.Tools.Shared.resources.dll",
+        "tools/zh-Hant/Microsoft.VisualStudio.Containers.Tools.Tasks.resources.dll"
       ]
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
-      "Microsoft.AspNetCore.App.Internal.Assets >= 10.0.10"
+      "Microsoft.AspNetCore.App.Internal.Assets >= 10.0.11",
+      "Microsoft.VisualStudio.Azure.Containers.Tools.Targets >= 1.24.1-preview.1"
     ]
   },
   "packageFolders": {
@@ -90,7 +178,7 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.300"
+      "SdkAnalysisLevel": "10.0.400"
     },
     "frameworks": {
       "net10.0": {
@@ -100,8 +188,12 @@
           "Microsoft.AspNetCore.App.Internal.Assets": {
             "suppressParent": "All",
             "target": "Package",
-            "version": "[10.0.10, )",
+            "version": "[10.0.11, )",
             "autoReferenced": true
+          },
+          "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
+            "target": "Package",
+            "version": "[1.24.1-preview.1, )"
           }
         },
         "imports": [
@@ -123,7 +215,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

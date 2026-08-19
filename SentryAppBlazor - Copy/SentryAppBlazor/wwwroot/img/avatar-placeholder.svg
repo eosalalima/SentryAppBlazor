@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 480" role="img" aria-label="Portrait unavailable">
+ <defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#e8ece9"/><stop offset="1" stop-color="#cdd6d0"/></linearGradient></defs>
+ <rect width="400" height="480" fill="url(#b)"/><circle cx="200" cy="170" r="78" fill="#9aa9a0"/><path d="M65 480c5-113 54-181 135-181s130 68 135 181" fill="#87988e"/>
+</svg>

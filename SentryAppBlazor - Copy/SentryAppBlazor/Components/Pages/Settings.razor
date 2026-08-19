@@ -1,0 +1,29 @@
+@page "/settings"
+@rendermode InteractiveServer
+@inject Microsoft.Extensions.Options.IOptions<MonitoringOptions> Options
+
+<PageTitle>Settings · Sentry</PageTitle>
+<header class="monitor-header compact">
+    <a class="brand" href="/"><span class="brand-mark">DGL</span><span><strong>SENTRY MONITOR</strong><small>ADMINISTRATION</small></span></a>
+    <a class="back-link" href="/">← Return to monitor</a>
+</header>
+<div class="settings-page">
+    <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Runtime configuration is loaded securely on the server. Changes to deployed configuration require an application restart.</p></div>
+    <div class="notice"><strong>Live integration pending schema confirmation</strong><span>DeviceLogs columns, direction mapping, device source, personnel relationship, and mobile-number source have not been supplied. Live queries and SMS transmission are intentionally disabled rather than guessed.</span></div>
+    <section class="settings-card">
+        <h2>Operation</h2><div class="form-grid">
+        <label>Operating mode<input value="@Options.Value.OperatingMode" readonly /><small>Demo uses the production display pipeline without database writes.</small></label>
+        <label>Device to monitor<select disabled><option>All Devices</option></select><small>Populated from the confirmed device source in Live Mode.</small></label>
+        <label>Polling interval<input value="@Options.Value.PollingInterval ms" readonly /></label>
+        <label>Startup lookback<input value="@Options.Value.LookbackSecondsOnStart seconds" readonly /></label></div>
+    </section>
+    <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
+        <label>Spotlight duration<input value="@Options.Value.HighlightDisplayDuration ms" readonly /></label>
+        <label>Feed retention<input value="@Options.Value.FeedRetentionDuration ms" readonly /></label>
+        <label class="wide">Protected photo directory<input value="Configured on server (value masked)" readonly /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
+    </section>
+    <section class="settings-card"><h2>Notifications</h2><div class="form-grid">
+        <label>SMS status<input value="@(Options.Value.SmsEnabled ? "Enabled" : "Disabled")" readonly /></label>
+        <label>Serial port<input value="@Options.Value.SmsComPort" readonly /></label></div>
+    </section>
+</div>
