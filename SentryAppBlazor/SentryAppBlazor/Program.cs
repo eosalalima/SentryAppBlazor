@@ -3,7 +3,7 @@ using SentryAppBlazor.Components;
 using SentryAppBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddJsonFile("config.json", optional: true, reloadOnChange: true);
+builder.Configuration.AddJsonFile(MonitoringSettingsStore.ConfigFileName, optional: true, reloadOnChange: true);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddOptions<MonitoringOptions>()
     .Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName))

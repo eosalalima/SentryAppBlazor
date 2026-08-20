@@ -9,7 +9,7 @@
     <a class="back-link" href="/">← Return to monitor</a>
 </header>
 <div class="settings-page">
-    <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>config.json</code>.</p></div>
+    <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
     <div class="notice"><strong>Live integration pending schema confirmation</strong><span>DeviceLogs columns, direction mapping, device source, personnel relationship, and mobile-number source have not been supplied. Live queries and SMS transmission are intentionally disabled rather than guessed.</span></div>
 
     <EditForm Model="Model" OnValidSubmit="ApplyAsync" FormName="monitoring-settings">
@@ -37,24 +37,18 @@
         <div class="settings-actions">
             <button type="submit" class="control-button">Apply</button>
             <button type="button" class="control-button" @onclick="Cancel">Cancel</button>
-            @if (!string.IsNullOrWhiteSpace(Message))
-            {
-                <span class="save-message">@Message</span>
-            }
         </div>
     </EditForm>
 </div>
 
 @code {
     private MonitoringOptions Model { get; set; } = new();
-    private string? Message { get; set; }
-
     protected override void OnInitialized() => Model = SettingsStore.Current;
 
     private async Task ApplyAsync()
     {
         await SettingsStore.SaveAsync(Model);
-        Message = "Monitoring settings saved to config.json.";
+        Navigation.NavigateTo("/");
     }
 
     private void Cancel() => Navigation.NavigateTo("/");
