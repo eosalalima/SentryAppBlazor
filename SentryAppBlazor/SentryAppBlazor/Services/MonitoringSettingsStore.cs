@@ -19,16 +19,35 @@ public sealed class MonitoringSettingsStore(
     {
         ArgumentNullException.ThrowIfNull(monitoring);
         await gate.WaitAsync(cancellationToken);
+        var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
         try
         {
             var config = new MonitoringConfigFile { Monitoring = monitoring.Clone() };
-            await using var stream = File.Create(configPath);
-            await JsonSerializer.SerializeAsync(stream, config, SerializerOptions, cancellationToken);
+            await using (var stream = new FileStream(
+                temporaryPath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 4096,
+                FileOptions.Asynchronous | FileOptions.WriteThrough))
+            {
+                await JsonSerializer.SerializeAsync(stream, config, SerializerOptions, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
+
+            File.Move(temporaryPath, configPath, overwrite: true);
             logger.LogInformation("Monitoring settings saved to {ConfigPath}", configPath);
         }
         finally
         {
-            gate.Release();
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            finally
+            {
+                gate.Release();
+            }
         }
     }
 
