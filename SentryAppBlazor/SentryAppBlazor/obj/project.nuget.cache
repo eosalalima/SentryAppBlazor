@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "4eRslyOBZVE=",
+  "dgSpecHash": "AW/W+t1XXC8=",
   "success": true,
-  "projectFilePath": "F:\\Projects\\Dr. Gloria D Lacson School\\application\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor.csproj",
+  "projectFilePath": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Eric Salalima\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.11\\microsoft.aspnetcore.app.internal.assets.10.0.11.nupkg.sha512",
     "C:\\Users\\Eric Salalima\\.nuget\\packages\\microsoft.visualstudio.azure.containers.tools.targets\\1.24.1-preview.1\\microsoft.visualstudio.azure.containers.tools.targets.1.24.1-preview.1.nupkg.sha512"

@@ -37,3 +37,4 @@ F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlaz
 F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Release\net10.0\ref\SentryAppBlazor.dll
 F:\Projects\Dr. Gloria D Lacson School\application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\bin\Release\net10.0\config.json
 F:\Projects\Dr. Gloria D Lacson School\application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\obj\Release\net10.0\compressed\obleg822jv-{0}-c9fxvdo4ao-c9fxvdo4ao.gz
+F:\Projects\Dr. Gloria D Lacson School\Application\SentryAppBlazor\SentryAppBlazor\SentryAppBlazor\bin\Release\net10.0\sentryconfig.json
