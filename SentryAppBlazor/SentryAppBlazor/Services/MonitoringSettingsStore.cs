@@ -8,11 +8,12 @@ public sealed class MonitoringSettingsStore(
     IOptionsMonitor<MonitoringOptions> options,
     ILogger<MonitoringSettingsStore> logger)
 {
+    public const string ConfigFileName = "sentryconfig.json";
     private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
-    private readonly string configPath = Path.Combine(environment.ContentRootPath, "config.json");
+    private readonly string configPath = Path.Combine(environment.ContentRootPath, ConfigFileName);
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    public MonitoringOptions Current => options.CurrentValue.Clone();
+    public MonitoringOptions Current => LoadCurrent();
 
     public async Task SaveAsync(MonitoringOptions monitoring, CancellationToken cancellationToken = default)
     {
@@ -28,6 +29,26 @@ public sealed class MonitoringSettingsStore(
         finally
         {
             gate.Release();
+        }
+    }
+
+    private MonitoringOptions LoadCurrent()
+    {
+        if (!File.Exists(configPath))
+        {
+            return options.CurrentValue.Clone();
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(configPath);
+            return JsonSerializer.Deserialize<MonitoringConfigFile>(stream)?.Monitoring?.Clone()
+                ?? options.CurrentValue.Clone();
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "Unable to read monitoring settings from {ConfigPath}", configPath);
+            return options.CurrentValue.Clone();
         }
     }
 
