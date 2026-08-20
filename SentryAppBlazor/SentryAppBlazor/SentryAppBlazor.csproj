@@ -11,4 +11,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.1-preview.1" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The application writes this file when settings are applied. Watching it would
+         restart the development host and disconnect the active Blazor circuit. -->
+    <Watch Remove="sentryconfig.json" />
+  </ItemGroup>
 </Project>
