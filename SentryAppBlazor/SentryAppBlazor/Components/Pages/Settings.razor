@@ -35,7 +35,7 @@
         </section>
         <div class="settings-actions">
             <button type="submit" class="control-button" disabled="@isSaving">@(isSaving ? "Applying…" : "Apply")</button>
-            <a class="secondary-button" href="/">Cancel</a>
+            <a class="control-button" href="/">Cancel</a>
             @if (!string.IsNullOrEmpty(statusMessage))
             {
                 <span class="save-message error" role="alert">@statusMessage</span>
