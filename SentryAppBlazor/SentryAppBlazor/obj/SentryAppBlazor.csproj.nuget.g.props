@@ -15,6 +15,7 @@
   </ItemGroup>
   <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
     <Import Project="$(NuGetPackageRoot)microsoft.visualstudio.azure.containers.tools.targets\1.24.1-preview.1\build\Microsoft.VisualStudio.Azure.Containers.Tools.Targets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.visualstudio.azure.containers.tools.targets\1.24.1-preview.1\build\Microsoft.VisualStudio.Azure.Containers.Tools.Targets.props')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props" Condition="Exists('$(NuGetPackageRoot)microsoft.entityframeworkcore\10.0.0\buildTransitive\net10.0\Microsoft.EntityFrameworkCore.props')" />
     <Import Project="$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.11\build\Microsoft.AspNetCore.App.Internal.Assets.props" Condition="Exists('$(NuGetPackageRoot)microsoft.aspnetcore.app.internal.assets\10.0.11\build\Microsoft.AspNetCore.App.Internal.Assets.props')" />
   </ImportGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">

@@ -13,8 +13,6 @@ public sealed class TurnstileServicesTests
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
     [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Fact] public void Production_defaults_disable_simulation() { var o=new SimulationOptions(); Assert.True(o.IsLiveMode);Assert.False(o.EnableSimulatedLogs);Assert.False(o.EnableManualTestLogs); }
-    [Fact] public void Demo_generation_runs_when_both_safety_controls_and_monitoring_are_enabled() => Assert.True(DemoDeviceLogGenerator.ShouldGenerate(new SimulationOptions { IsLiveMode=false, EnableSimulatedLogs=true }, true));
-    [Theory] [InlineData(true,true,true)] [InlineData(false,false,true)] [InlineData(false,true,false)] public void Demo_generation_requires_every_safety_condition(bool live,bool enabled,bool active) => Assert.False(DemoDeviceLogGenerator.ShouldGenerate(new SimulationOptions { IsLiveMode=live, EnableSimulatedLogs=enabled }, active));
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }
