@@ -2,6 +2,7 @@
 @inject MonitoringSettingsStore SettingsStore
 @inject NavigationManager Navigation
 @inject ILogger<Settings> Logger
+@using SentryAppBlazor.Turnstile
 
 <PageTitle>Settings · Sentry</PageTitle>
 <header class="monitor-header compact">
@@ -22,13 +23,18 @@
             <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>
             <label>Maximum rows per poll<input type="number" min="1" max="500" @bind="Model.MaxRowsPerPoll" /><ValidationMessage For="() => Model.MaxRowsPerPoll" /></label></div>
         </section>
+        <section class="settings-card">
+            <h2>Demo safety</h2><div class="form-grid">
+            <label>Live database mode<InputSelect TValue="bool" @bind-Value="SimulationModel.IsLiveMode"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Keep enabled whenever the configured connection points to production.</small></label>
+            <label>Automatic demo logs<InputSelect TValue="bool" @bind-Value="SimulationModel.EnableSimulatedLogs"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Additional write-safety switch; it has no effect in Live mode.</small></label></div>
+        </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>
             <label>Feed retention<input type="number" min="1000" max="300000" @bind="Model.FeedRetentionDuration" /><ValidationMessage For="() => Model.FeedRetentionDuration" /></label>
             <label class="wide">Protected photo directory<input @bind="Model.PhotosPath" /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
         </section>
         <section class="settings-card"><h2>Notifications</h2><div class="form-grid">
-            <label>SMS status<select @bind="Model.SmsEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select></label>
+            <label>SMS status<select @bind="Model.SmsEnabled"><option value="True">Enabled</option><option value="False">Disabled</option></select></label>
             <label>Serial port<input @bind="Model.SmsComPort" /><ValidationMessage For="() => Model.SmsComPort" /></label>
             <label>SMS timeout<input type="number" min="5" max="120" @bind="Model.SmsTimeoutSeconds" /><ValidationMessage For="() => Model.SmsTimeoutSeconds" /></label>
             <label>SMS retry count<input type="number" min="0" max="5" @bind="Model.SmsRetryCount" /><ValidationMessage For="() => Model.SmsRetryCount" /></label></div>
@@ -46,9 +52,14 @@
 
 @code {
     private MonitoringOptions Model { get; set; } = new();
+    private SimulationOptions SimulationModel { get; set; } = new();
     private bool isSaving;
     private string? statusMessage;
-    protected override void OnInitialized() => Model = SettingsStore.Current;
+    protected override void OnInitialized()
+    {
+        Model = SettingsStore.Current;
+        SimulationModel = SettingsStore.CurrentSimulation;
+    }
 
     private async Task ApplyAsync()
     {
@@ -58,7 +69,7 @@
         statusMessage = null;
         try
         {
-            await SettingsStore.SaveAsync(Model);
+            await SettingsStore.SaveAsync(Model, SimulationModel);
             Navigation.NavigateTo("/");
         }
         catch (Exception exception)
