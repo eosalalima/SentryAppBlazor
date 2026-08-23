@@ -3,4 +3,5 @@
     <Build />
   </Project>
   <Project Path="SentryAppBlazor/SentryAppBlazor.csproj" />
+  <Project Path="SentryAppBlazor.Tests/SentryAppBlazor.Tests.csproj" />
 </Solution>

@@ -1,32 +1,19 @@
-# Sentry Turnstile Monitoring System — implementation report
+# Turnstile monitoring architecture and operations
 
-## Implemented architecture
+The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWorker` creates a fresh Access Control context per cycle, performs the ordered left-join query with a `(TimeLogStamp, Id)` watermark, enriches each result using independent STAFF and STUDENT contexts, attempts the replaceable SMS transport, and publishes the event even when lookup or delivery fails. The feed and recently-seen-ID cache are bounded and thread safe.
 
-The repository is now one .NET 10 Blazor Web App using Interactive Server rendering. A singleton hosted `MonitoringState` owns the single event coordinator, bounded ID deduplication set, FIFO queue, Spotlight lifecycle, recent-feed retention, and cancellation-aware timing. Demo events enter this same pipeline and never access a database. The responsive monitoring screen includes lifecycle controls, explicit status text, current-event Spotlight, recent activity, protected photo URLs, and a server-only settings summary.
+`DemoDeviceLogGenerator` is a separate hosted service. It selects only active personnel and devices and writes marked records through the parameterized `DeviceLogWriter`; the polling worker—not the simulator—publishes them. The same writer backs `POST /admin/test-logs`. That endpoint returns 404 unless both non-live mode and `EnableManualTestLogs` are configured. Deployments should additionally place this administrative route behind their established authentication gateway/policy.
 
-`PhotoService` accepts extension-free photo IDs, reduces them with `Path.GetFileName`, verifies the canonical result remains below the configured root, serves JPG content from the server, and otherwise returns the SVG placeholder. The physical directory is never rendered.
+## Configuration and safe demo enablement
 
-## Configuration
+Supply secrets with user-secrets, a secret store, or environment variables (`ConnectionStrings__AccessControlDb`, `ConnectionStrings__StaffDb`, and `ConnectionStrings__StudentDb`). Committed values are intentionally blank. Production defaults are `Simulation:IsLiveMode=true`, with automatic and manual generation false.
 
-`Monitoring` settings are bound and data-annotation validated at startup. Defaults are Demo mode, all devices, 500 ms polling, 5 second Spotlight, 10 second feed retention, 3 second startup lookback, 20 rows per poll, COM4, 30 second SMS timeout, two retries, and SMS disabled. Values currently require an application restart. Override secrets and environment-specific paths with IIS environment variables such as `Monitoring__PhotosPath`; do not store a production connection string in this repository.
+For an isolated demo database only, choose **Demo**, enable **Automatic demo logs**, apply the settings, verify the SQL identity cannot reach production, then start monitoring in the UI. Applying settings writes both safety controls (`IsLiveMode=false` and `EnableSimulatedLogs=true`) to `sentryconfig.json`. The generator inserts a marked DeviceLogs row and the normal polling worker reads, enriches, and displays it. Turn automatic logs off before changing the connection. Manual insertion additionally requires `Simulation__EnableManualTestLogs=true`, a secret `Simulation__AdministrationKey`, the matching `X-Test-Log-Key` header, and a JSON request containing `accessNumber`, `deviceSerialNumber`, and one of `IN`, `OUT`, or `BREAK OUT`.
 
-## Assumptions and deliberately deferred integration
+## SQL permissions
 
-No database schema or anonymized rows were available. Consequently no table/column names, SQL query, device source, direction rule, personnel relationship, unique-log mapping, or mobile-number mapping has been invented. Live mode visibly reports that schema mapping is required. Likewise, modem model, serial parameters, recipient source, authentication policy, and administrator authorization policy are unconfirmed, so SMS transmission and mutable browser settings are intentionally disabled. Demo photo IDs fall back to the placeholder unless matching files are installed.
+Use separate least-privilege identities where possible. Monitoring needs `SELECT` on Access Control `dbo.DeviceLogs`, `dbo.Personnels`, and `dbo.ZKDevices`; lookup needs `SELECT` on each directory's `dbo.MyDataTable`. Demo/manual writing needs only `INSERT` on Access Control `dbo.DeviceLogs`. Do not grant schema modification, broad database roles, or directory writes.
 
-Before Live mode can be completed, provide the `CREATE TABLE` definitions for `DeviceLogs` and related device/personnel tables, anonymized rows, stable unique ID, timestamp, PhotoId type, confirmed IN/OUT rule, device key/name source, personnel name/mobile source, modem configuration, and administrator policy.
+## Run and verify
 
-## IIS deployment
-
-1. Install IIS and the .NET 10 Hosting Bundle, then reboot or restart IIS.
-2. Run `dotnet publish SentryAppBlazor/SentryAppBlazor/SentryAppBlazor.csproj -c Release -r win-x64 --self-contained false -o <publish-folder>`.
-3. Back up the current site files and configuration. Copy the publish output to a versioned deployment folder.
-4. Create an IIS application pool using **No Managed Code**. Point the site/application at the deployment folder.
-5. Set environment-specific `Monitoring__*` values in protected IIS configuration. Never place the production connection string in source control.
-6. Grant the application-pool identity read/execute access to the deployment folder and read-only access to the configured photo folder. Later, grant only the confirmed read-only SQL permissions and COM-port access required by the final integrations.
-7. Configure HTTPS bindings, stdout/event logging, rapid-fail protection, and an intentional recycle schedule. Verify `/`, `/settings`, and a missing `/photos/test` request (which must return the placeholder).
-8. For rollback, stop the site, restore the prior versioned physical path and protected configuration backup, start the site, and repeat the health checks.
-
-## Verification status and known limitations
-
-Static JSON validation and Git whitespace validation were completed. The container does not include the .NET SDK, so compilation, automated tests, runtime smoke tests, and browser screenshots could not be performed here. Live SQL, modem/SMS behavior, authentication, durable checkpoints across process restarts, multi-instance coordination, and editable persistent settings remain blocked on the required source information above.
+Install the .NET 10 SDK, then run `dotnet restore SentryAppBlazor/SentryAppBlazor.slnx`, `dotnet format SentryAppBlazor/SentryAppBlazor.slnx --verify-no-changes`, `dotnet build SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-restore`, and `dotnet test SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-build`. Start with `dotnet run --project SentryAppBlazor/SentryAppBlazor/SentryAppBlazor.csproj`. SQL transient errors are logged and retried on later hosted-service cycles; cancellation is propagated through delays, EF calls, and SMS calls.
