@@ -8,7 +8,7 @@ The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWo
 
 Supply secrets with user-secrets, a secret store, or environment variables (`ConnectionStrings__AccessControlDb`, `ConnectionStrings__StaffDb`, and `ConnectionStrings__StudentDb`). Committed values are intentionally blank. Production defaults are `Simulation:IsLiveMode=true`, with automatic and manual generation false.
 
-For an isolated demo database only, set `Simulation__IsLiveMode=false` and `Simulation__EnableSimulatedLogs=true`, verify the SQL identity cannot reach production, then start monitoring in the UI. Turn both settings back off before changing the connection. Manual insertion additionally requires `Simulation__EnableManualTestLogs=true`, a secret `Simulation__AdministrationKey`, the matching `X-Test-Log-Key` header, and a JSON request containing `accessNumber`, `deviceSerialNumber`, and one of `IN`, `OUT`, or `BREAK OUT`.
+For an isolated demo database only, choose **Demo**, enable **Automatic demo logs**, apply the settings, verify the SQL identity cannot reach production, then start monitoring in the UI. Applying settings writes both safety controls (`IsLiveMode=false` and `EnableSimulatedLogs=true`) to `sentryconfig.json`. The generator inserts a marked DeviceLogs row and the normal polling worker reads, enriches, and displays it. Turn automatic logs off before changing the connection. Manual insertion additionally requires `Simulation__EnableManualTestLogs=true`, a secret `Simulation__AdministrationKey`, the matching `X-Test-Log-Key` header, and a JSON request containing `accessNumber`, `deviceSerialNumber`, and one of `IN`, `OUT`, or `BREAK OUT`.
 
 ## SQL permissions
 
