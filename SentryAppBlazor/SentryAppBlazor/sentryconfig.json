@@ -1,6 +1,7 @@
 {
   "Monitoring": {
     "OperatingMode": "Demo",
+    "EnableSimulatedLogs": true,
     "DeviceId": "all",
     "PhotosPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Photos\\Photos",
     "PollingInterval": 500,
@@ -12,5 +13,12 @@
     "SmsComPort": "COM4",
     "SmsTimeoutSeconds": 30,
     "SmsRetryCount": 2
+  },
+  "Simulation": {
+    "IsLiveMode": false,
+    "EnableSimulatedLogs": true,
+    "EnableManualTestLogs": false,
+    "MinimumDelaySeconds": 1,
+    "MaximumDelaySeconds": 10
   }
 }

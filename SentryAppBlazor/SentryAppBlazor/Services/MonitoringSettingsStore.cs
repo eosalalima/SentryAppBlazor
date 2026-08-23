@@ -6,6 +6,7 @@ namespace SentryAppBlazor.Services;
 public sealed class MonitoringSettingsStore(
     IWebHostEnvironment environment,
     IOptionsMonitor<MonitoringOptions> options,
+    IOptionsMonitor<SentryAppBlazor.Turnstile.SimulationOptions> simulationOptions,
     ILogger<MonitoringSettingsStore> logger)
 {
     public const string ConfigFileName = "sentryconfig.json";
@@ -22,7 +23,20 @@ public sealed class MonitoringSettingsStore(
         var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            var config = new MonitoringConfigFile { Monitoring = monitoring.Clone() };
+            var currentSimulation = simulationOptions.CurrentValue;
+            var config = new MonitoringConfigFile
+            {
+                Monitoring = monitoring.Clone(),
+                Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
+                {
+                    IsLiveMode = !monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase),
+                    EnableSimulatedLogs = monitoring.EnableSimulatedLogs,
+                    EnableManualTestLogs = currentSimulation.EnableManualTestLogs,
+                    AdministrationKey = currentSimulation.AdministrationKey,
+                    MinimumDelaySeconds = currentSimulation.MinimumDelaySeconds,
+                    MaximumDelaySeconds = currentSimulation.MaximumDelaySeconds
+                }
+            };
             await using (var stream = new FileStream(
                 temporaryPath,
                 FileMode.CreateNew,
@@ -74,5 +88,6 @@ public sealed class MonitoringSettingsStore(
     private sealed class MonitoringConfigFile
     {
         public MonitoringOptions Monitoring { get; set; } = new();
+        public SentryAppBlazor.Turnstile.SimulationOptions? Simulation { get; set; }
     }
 }
