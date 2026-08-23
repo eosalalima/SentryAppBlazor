@@ -19,7 +19,12 @@
         <button class="control-button" @onclick="Toggle" title="@(Monitor.IsRunning ? "Stop monitoring" : "Start monitoring")">
             <span aria-hidden="true">@(Monitor.IsRunning ? "■" : "▶")</span> @(Monitor.IsRunning ? "Stop" : "Start")
         </button>
-        <a class="icon-button" href="settings" title="Monitoring settings" aria-label="Monitoring settings">⚙</a>
+        <a class="icon-button" href="/settings" title="Monitoring settings" aria-label="Open monitoring settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.95 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.58 15 1.7 1.7 0 0 0 3 14H3v-4h.08A1.7 1.7 0 0 0 4.6 8.95a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.03V3h4v.08a1.7 1.7 0 0 0 1.05 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.97 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+            </svg>
+        </a>
     </div>
 </header>
 
