@@ -18,7 +18,7 @@
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
             <label>Operating mode<select @bind="Model.OperatingMode"><option>Demo</option><option>Live</option></select><small>Demo can create marked DeviceLogs records in the configured non-production database.</small></label>
-            <label>Automatic demo logs<select @bind="Model.EnableSimulatedLogs"><option value="true">Enabled</option><option value="false">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
+            <label>Automatic demo logs<InputSelect TValue="bool" @bind-Value="Model.EnableSimulatedLogs"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
             <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>
