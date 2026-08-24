@@ -26,8 +26,7 @@
         </section>
         <section class="settings-card">
             <h2>Demo safety</h2><div class="form-grid">
-            <label>Live database mode<InputSelect TValue="bool" @bind-Value="SimulationModel.IsLiveMode"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Keep enabled whenever the configured connection points to production.</small></label>
-            <label>Automatic demo logs<InputSelect TValue="bool" @bind-Value="SimulationModel.EnableSimulatedLogs"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Additional write-safety switch; it has no effect in Live mode.</small></label></div>
+            <label>Live database mode<InputSelect TValue="bool" @bind-Value="SimulationModel.IsLiveMode"><option value="True">Enabled</option><option value="False">Disabled</option></InputSelect><small>Keep enabled whenever the configured connection points to production.</small></label></div>
         </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>
@@ -54,6 +53,11 @@
 @code {
     private MonitoringOptions Model { get; set; } = new();
     private SimulationOptions SimulationModel { get; set; } = new();
+    private string AutomaticDemoLogsValue
+    {
+        get => Model.EnableSimulatedLogs ? "enabled" : "disabled";
+        set => Model.EnableSimulatedLogs = value == "enabled";
+    }
     private bool isSaving;
     private string? statusMessage;
     protected override void OnInitialized()
