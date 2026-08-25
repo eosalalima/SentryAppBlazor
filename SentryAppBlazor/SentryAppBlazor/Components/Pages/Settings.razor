@@ -17,8 +17,8 @@
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
-            <label>Operating mode<select @bind="Model.OperatingMode"><option value="Demo">Demo</option><option value="Live">Live</option></select><small>Demo can create marked DeviceLogs records in the configured non-production database.</small></label>
-            <label>Automatic demo logs<select @bind="AutomaticDemoLogsSelection"><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
+            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo can create marked DeviceLogs records in the configured non-production database.</small></label>
+            <label>Automatic demo logs<select @onchange="UpdateAutomaticDemoLogs"><option value="enabled" selected="@Model.EnableSimulatedLogs">Enabled</option><option value="disabled" selected="@(!Model.EnableSimulatedLogs)">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
             <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>
@@ -26,7 +26,7 @@
         </section>
         <section class="settings-card">
             <h2>Demo safety</h2><div class="form-grid">
-            <label>Live database mode<select @bind="LiveDatabaseModeSelection"><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label></div>
+            <label>Live database mode<select @onchange="UpdateLiveDatabaseMode"><option value="enabled" selected="@SimulationModel.IsLiveMode">Enabled</option><option value="disabled" selected="@(!SimulationModel.IsLiveMode)">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label></div>
         </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>
@@ -34,7 +34,7 @@
             <label class="wide">Protected photo directory<input @bind="Model.PhotosPath" /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
         </section>
         <section class="settings-card"><h2>Notifications</h2><div class="form-grid">
-            <label>SMS status<select @bind="SmsStatusSelection"><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label>
+            <label>SMS status<select @onchange="UpdateSmsStatus"><option value="enabled" selected="@Model.SmsEnabled">Enabled</option><option value="disabled" selected="@(!Model.SmsEnabled)">Disabled</option></select></label>
             <label>Serial port<input @bind="Model.SmsComPort" /><ValidationMessage For="() => Model.SmsComPort" /></label>
             <label>SMS timeout<input type="number" min="5" max="120" @bind="Model.SmsTimeoutSeconds" /><ValidationMessage For="() => Model.SmsTimeoutSeconds" /></label>
             <label>SMS retry count<input type="number" min="0" max="5" @bind="Model.SmsRetryCount" /><ValidationMessage For="() => Model.SmsRetryCount" /></label></div>
@@ -55,24 +55,6 @@
     private SimulationOptions SimulationModel { get; set; } = new();
     private bool isSaving;
     private string? statusMessage;
-
-    private string AutomaticDemoLogsSelection
-    {
-        get => Model.EnableSimulatedLogs ? "enabled" : "disabled";
-        set => Model.EnableSimulatedLogs = value == "enabled";
-    }
-
-    private string LiveDatabaseModeSelection
-    {
-        get => SimulationModel.IsLiveMode ? "enabled" : "disabled";
-        set => SimulationModel.IsLiveMode = value == "enabled";
-    }
-
-    private string SmsStatusSelection
-    {
-        get => Model.SmsEnabled ? "enabled" : "disabled";
-        set => Model.SmsEnabled = value == "enabled";
-    }
 
     protected override void OnInitialized()
     {
@@ -103,4 +85,22 @@
     }
 
     private void HandleInvalidSubmit() => statusMessage = "Correct the highlighted settings before applying.";
+
+    private bool IsOperatingMode(string mode) =>
+        string.Equals(Model.OperatingMode, mode, StringComparison.OrdinalIgnoreCase);
+
+    private void UpdateOperatingMode(ChangeEventArgs args) =>
+        Model.OperatingMode = args.Value?.ToString() ?? Model.OperatingMode;
+
+    private void UpdateAutomaticDemoLogs(ChangeEventArgs args) =>
+        Model.EnableSimulatedLogs = IsEnabled(args);
+
+    private void UpdateLiveDatabaseMode(ChangeEventArgs args) =>
+        SimulationModel.IsLiveMode = IsEnabled(args);
+
+    private void UpdateSmsStatus(ChangeEventArgs args) =>
+        Model.SmsEnabled = IsEnabled(args);
+
+    private static bool IsEnabled(ChangeEventArgs args) =>
+        string.Equals(args.Value?.ToString(), "enabled", StringComparison.Ordinal);
 }
