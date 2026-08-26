@@ -1,3 +1,4 @@
+using SentryAppBlazor.Services;
 using SentryAppBlazor.Turnstile;
 
 namespace SentryAppBlazor.Tests;
@@ -15,13 +16,17 @@ public sealed class TurnstileServicesTests
     [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Fact] public void Production_defaults_disable_simulation() { var o=new SimulationOptions(); Assert.True(o.IsLiveMode);Assert.False(o.EnableSimulatedLogs);Assert.False(o.EnableManualTestLogs); }
     [Theory]
-    [InlineData(false, true, true, true)]
-    [InlineData(false, false, true, false)]
-    [InlineData(true, true, true, false)]
-    [InlineData(false, true, false, false)]
-    public void Generator_requires_demo_mode_setting_and_active_monitoring(bool live, bool enabled, bool active, bool expected)
+    [InlineData(false, "Demo", true, true, true)]
+    [InlineData(false, "Demo", false, true, false)]
+    [InlineData(true, "Demo", true, true, false)]
+    [InlineData(false, "Live", true, true, false)]
+    [InlineData(false, "Demo", true, false, false)]
+    public void Generator_requires_all_demo_safety_settings_and_active_monitoring(bool live, string mode, bool enabled, bool active, bool expected)
     {
-        Assert.Equal(expected, DemoDeviceLogGenerator.ShouldGenerate(new SimulationOptions { IsLiveMode=live, EnableSimulatedLogs=enabled }, active));
+        Assert.Equal(expected, DemoDeviceLogGenerator.ShouldGenerate(
+            new SimulationOptions { IsLiveMode=live },
+            new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled },
+            active));
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
