@@ -26,18 +26,17 @@ public sealed class MonitoringSettingsStore(
         var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            var currentSimulation = simulationOptions.CurrentValue;
             var config = new MonitoringConfigFile
             {
                 Monitoring = monitoring.Clone(),
                 Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
                 {
-                    IsLiveMode = !monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase),
+                    IsLiveMode = simulation.IsLiveMode,
                     EnableSimulatedLogs = monitoring.EnableSimulatedLogs,
-                    EnableManualTestLogs = currentSimulation.EnableManualTestLogs,
-                    AdministrationKey = currentSimulation.AdministrationKey,
-                    MinimumDelaySeconds = currentSimulation.MinimumDelaySeconds,
-                    MaximumDelaySeconds = currentSimulation.MaximumDelaySeconds
+                    EnableManualTestLogs = simulation.EnableManualTestLogs,
+                    AdministrationKey = simulation.AdministrationKey,
+                    MinimumDelaySeconds = simulation.MinimumDelaySeconds,
+                    MaximumDelaySeconds = simulation.MaximumDelaySeconds
                 }
             };
             await using (var stream = new FileStream(
