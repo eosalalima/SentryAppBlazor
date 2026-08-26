@@ -14,6 +14,13 @@ public sealed class TurnstileLogState
     private readonly ConcurrentQueue<TurnstileLogEntry> entries = new(); public event Action? Changed;
     public IReadOnlyList<TurnstileLogEntry> Entries => entries.Reverse().ToArray();
     public void Add(TurnstileLogEntry entry) { entries.Enqueue(entry); while (entries.Count > 200 && entries.TryDequeue(out _)) { } var handlers = Changed; if (handlers is not null) _ = Task.Run(() => { foreach (Action h in handlers.GetInvocationList()) try { h(); } catch { } }); }
+    public void Prune(DateTimeOffset cutoff)
+    {
+        var changed=false;
+        while (entries.TryPeek(out var entry) && entry.TimeLogStamp < cutoff) changed|=entries.TryDequeue(out _);
+        if (changed) NotifyChanged();
+    }
+    private void NotifyChanged() { var handlers=Changed; if (handlers is not null) _=Task.Run(() => { foreach(Action h in handlers.GetInvocationList()) try { h(); } catch { } }); }
 }
 public sealed class RecentlySeenIds
 {
