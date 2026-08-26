@@ -28,6 +28,23 @@ public sealed class TurnstileServicesTests
             new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled },
             active));
     }
+    [Fact]
+    public void Generator_creates_a_displayable_demo_event_without_database_data()
+    {
+        var timestamp = DateTimeOffset.Parse("2026-08-26T12:00:00Z");
+        var entry = DemoDeviceLogGenerator.CreateEntry(
+            new MonitoringOptions { DeviceId="all" }, timestamp, new Random(42));
+
+        Assert.NotEqual(Guid.Empty, entry.TimeLogId);
+        Assert.Equal(timestamp, entry.TimeLogStamp);
+        Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
+        Assert.False(string.IsNullOrWhiteSpace(entry.PersonnelName));
+        Assert.Equal("Demo Gate", entry.DeviceName);
+        Assert.Equal("DEMO", entry.VerifyMode);
+    }
+    [Theory] [InlineData("Demo", false)] [InlineData("demo", false)] [InlineData("Live", true)]
+    public void Database_polling_only_runs_in_live_mode(string mode, bool expected) =>
+        Assert.Equal(expected, TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }
