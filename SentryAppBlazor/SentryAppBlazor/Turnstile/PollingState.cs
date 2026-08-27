@@ -3,11 +3,42 @@ using System.Collections.Concurrent;
 namespace SentryAppBlazor.Turnstile;
 public sealed class TurnstilePollingController
 {
-    private volatile bool active; private readonly SemaphoreSlim changed = new(0);
+    private readonly object gate = new();
+    private volatile bool active;
+    private TaskCompletionSource activeSignal = CreateSignal();
+
     public bool IsActive => active;
-    public void Start() { active = true; changed.Release(); }
-    public void Stop() { active = false; }
-    public async Task WaitUntilActiveAsync(CancellationToken token) { while (!active) await changed.WaitAsync(token); }
+
+    public void Start()
+    {
+        lock (gate)
+        {
+            if (active) return;
+            active = true;
+            activeSignal.TrySetResult();
+        }
+    }
+
+    public void Stop()
+    {
+        lock (gate)
+        {
+            if (!active) return;
+            active = false;
+            activeSignal = CreateSignal();
+        }
+    }
+
+    public Task WaitUntilActiveAsync(CancellationToken token)
+    {
+        lock (gate)
+        {
+            return active ? Task.CompletedTask : activeSignal.Task.WaitAsync(token);
+        }
+    }
+
+    private static TaskCompletionSource CreateSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
 public sealed class TurnstileLogState
 {
