@@ -21,13 +21,24 @@ public sealed class DemoDeviceLogGenerator(
     public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
 
     public static bool ShouldGenerate(SimulationOptions simulation, MonitoringOptions monitoring, bool monitoringActive) =>
+        IsDemoEnabled(simulation, monitoring) && monitoringActive;
+
+    public static bool IsDemoEnabled(SimulationOptions simulation, MonitoringOptions monitoring) =>
         !simulation.IsLiveMode &&
         monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase) &&
-        monitoring.EnableSimulatedLogs &&
-        monitoringActive;
+        monitoring.EnableSimulatedLogs;
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
+        // Demo mode is expected to be immediately usable. Starting the shared
+        // controller here wakes both this generator and the database poller; it
+        // also avoids relying on a Blazor circuit/button click to start hosted
+        // services that belong to the application rather than to one browser.
+        if (IsDemoEnabled(settings.CurrentValue, monitoringSettings.CurrentValue))
+        {
+            controller.Start();
+        }
+
         while (!token.IsCancellationRequested)
         {
             try
@@ -46,6 +57,7 @@ public sealed class DemoDeviceLogGenerator(
                 if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
                 {
                     logger.LogWarning("Demo log was not inserted because no directory access numbers or device serial numbers are available");
+                    await Task.Delay(TimeSpan.FromSeconds(1), time, token);
                     continue;
                 }
 
@@ -68,6 +80,7 @@ public sealed class DemoDeviceLogGenerator(
             catch (Exception exception)
             {
                 logger.LogError(exception, "Demo DeviceLogs insertion failed; a later cycle will retry");
+                await Task.Delay(TimeSpan.FromSeconds(1), time, token);
             }
         }
     }
