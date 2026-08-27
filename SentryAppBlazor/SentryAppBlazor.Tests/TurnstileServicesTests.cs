@@ -39,6 +39,17 @@ public sealed class TurnstileServicesTests
             new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled },
             active));
     }
+    [Theory]
+    [InlineData(false, "Demo", true, true)]
+    [InlineData(true, "Demo", true, false)]
+    [InlineData(false, "Live", true, false)]
+    [InlineData(false, "Demo", false, false)]
+    public void Generator_auto_starts_only_for_safely_enabled_demo_mode(bool live, string mode, bool enabled, bool expected)
+    {
+        Assert.Equal(expected, DemoDeviceLogGenerator.IsDemoEnabled(
+            new SimulationOptions { IsLiveMode=live },
+            new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled }));
+    }
     [Fact]
     public void Generator_requires_a_database_writer()
     {
