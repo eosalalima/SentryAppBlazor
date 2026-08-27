@@ -30,7 +30,11 @@ AND (LOWER({deviceId}) = 'all' OR dl.DeviceSerialNumber = {deviceId})
 AND (dl.TimeLogStamp > {lastTimestamp} OR (dl.TimeLogStamp = {lastTimestamp} AND dl.Id > {lastId}))
 ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
         var rows = await db.TurnstileLogRows.FromSqlInterpolated(query).AsNoTracking().ToListAsync(token);
-        foreach (var row in rows.OrderBy(x => x.TimeLogStamp).ThenBy(x => x.TimeLogId))
+        // Keep SQL Server's uniqueidentifier ordering intact. Guid.CompareTo uses a
+        // different byte ordering, so sorting this page again in .NET can move the
+        // watermark backwards and repeatedly fetch (or skip) rows that share a
+        // timestamp, especially once a poll is limited by TOP.
+        foreach (var row in rows)
         {
             if (seen.Add(row.TimeLogId)) await ProcessAsync(row, token);
             lastTimestamp=row.TimeLogStamp; lastId=row.TimeLogId;
