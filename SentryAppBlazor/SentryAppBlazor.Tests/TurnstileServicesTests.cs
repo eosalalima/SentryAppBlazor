@@ -29,7 +29,7 @@ public sealed class TurnstileServicesTests
             active));
     }
     [Fact]
-    public void Generator_creates_a_displayable_demo_event_ready_for_persistence()
+    public void Generator_creates_a_displayable_temporary_demo_event()
     {
         var timestamp = DateTimeOffset.Parse("2026-08-26T12:00:00Z");
         var entry = DemoDeviceLogGenerator.CreateEntry(
@@ -41,6 +41,13 @@ public sealed class TurnstileServicesTests
         Assert.False(string.IsNullOrWhiteSpace(entry.PersonnelName));
         Assert.Equal("Demo Gate", entry.DeviceName);
         Assert.Equal("DEMO", entry.VerifyMode);
+    }
+    [Fact]
+    public void Generator_does_not_require_a_database_writer()
+    {
+        var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
+
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
     }
     [Theory] [InlineData("Demo", false)] [InlineData("demo", false)] [InlineData("Live", true)]
     public void Database_polling_only_runs_in_live_mode(string mode, bool expected) =>
