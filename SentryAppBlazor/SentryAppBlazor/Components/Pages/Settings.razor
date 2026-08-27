@@ -11,13 +11,13 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode does not write to the configured database</strong><span>When explicitly enabled below, Demo mode creates temporary sample events in the monitor feed. Live mode remains the only mode that reads turnstile records.</span></div>
+    <div class="notice"><strong>Demo mode writes test records to the configured database</strong><span>When explicitly enabled below, Demo mode inserts random records into <code>DeviceLogs</code>; the normal polling process then displays them.</span></div>
 
     <EditForm Model="Model" OnValidSubmit="ApplyAsync" OnInvalidSubmit="HandleInvalidSubmit" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
-            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo creates temporary sample events without requiring a database connection.</small></label>
+            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo inserts test events using the configured database connections.</small></label>
             <label>Automatic demo logs<select @onchange="UpdateAutomaticDemoLogs"><option value="enabled" selected="@Model.EnableSimulatedLogs">Enabled</option><option value="disabled" selected="@(!Model.EnableSimulatedLogs)">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
@@ -26,7 +26,9 @@
         </section>
         <section class="settings-card">
             <h2>Demo safety</h2><div class="form-grid">
-            <label>Live database mode<select @onchange="UpdateLiveDatabaseMode"><option value="enabled" selected="@SimulationModel.IsLiveMode">Enabled</option><option value="disabled" selected="@(!SimulationModel.IsLiveMode)">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label></div>
+            <label>Live database mode<select @onchange="UpdateLiveDatabaseMode"><option value="enabled" selected="@SimulationModel.IsLiveMode">Enabled</option><option value="disabled" selected="@(!SimulationModel.IsLiveMode)">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label>
+            <label>Minimum log delay (seconds)<input type="number" min="1" max="3600" @bind="SimulationModel.MinimumDelaySeconds" /><ValidationMessage For="() => SimulationModel.MinimumDelaySeconds" /></label>
+            <label>Maximum log delay (seconds)<input type="number" min="1" max="3600" @bind="SimulationModel.MaximumDelaySeconds" /><ValidationMessage For="() => SimulationModel.MaximumDelaySeconds" /></label></div>
         </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>

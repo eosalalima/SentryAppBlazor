@@ -13,7 +13,7 @@ public sealed class TurnstileServicesTests
     [Fact] public void Feed_prunes_entries_older_than_monitoring_retention() { var s=new TurnstileLogState(); s.Add(Entry(Guid.NewGuid()) with { TimeLogStamp=DateTimeOffset.UtcNow.AddMinutes(-1) }); s.Add(Entry(Guid.NewGuid())); s.Prune(DateTimeOffset.UtcNow.AddSeconds(-10)); Assert.Single(s.Entries); }
     [Theory] [InlineData(null,"/img/avatar-placeholder.svg")] [InlineData("","/img/avatar-placeholder.svg")] [InlineData("../secret.jpg","/img/avatar-placeholder.svg")] [InlineData("person.jpg","/photos/person.jpg")]
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
-    [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
+    [Theory] [InlineData("IN")] [InlineData("OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Fact] public void Production_defaults_disable_simulation() { var o=new SimulationOptions(); Assert.True(o.IsLiveMode);Assert.False(o.EnableSimulatedLogs);Assert.False(o.EnableManualTestLogs); }
     [Theory]
     [InlineData(false, "Demo", true, true, true)]
@@ -29,29 +29,15 @@ public sealed class TurnstileServicesTests
             active));
     }
     [Fact]
-    public void Generator_creates_a_displayable_temporary_demo_event()
-    {
-        var timestamp = DateTimeOffset.Parse("2026-08-26T12:00:00Z");
-        var entry = DemoDeviceLogGenerator.CreateEntry(
-            new MonitoringOptions { DeviceId="all" }, timestamp, new Random(42));
-
-        Assert.NotEqual(Guid.Empty, entry.TimeLogId);
-        Assert.Equal(timestamp, entry.TimeLogStamp);
-        Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
-        Assert.False(string.IsNullOrWhiteSpace(entry.PersonnelName));
-        Assert.Equal("Demo Gate", entry.DeviceName);
-        Assert.Equal("DEMO", entry.VerifyMode);
-    }
-    [Fact]
-    public void Generator_does_not_require_a_database_writer()
+    public void Generator_requires_a_database_writer()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
     }
-    [Theory] [InlineData("Demo", false)] [InlineData("demo", false)] [InlineData("Live", true)]
-    public void Database_polling_only_runs_in_live_mode(string mode, bool expected) =>
-        Assert.Equal(expected, TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
+    [Theory] [InlineData("Demo")] [InlineData("demo")] [InlineData("Live")]
+    public void Database_polling_runs_in_all_modes(string mode) =>
+        Assert.True(TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }

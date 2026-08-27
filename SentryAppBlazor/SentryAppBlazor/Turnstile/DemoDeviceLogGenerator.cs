@@ -1,10 +1,15 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using SentryAppBlazor.Data;
 using SentryAppBlazor.Services;
 
 namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
-    TurnstileLogState state,
+    IDbContextFactory<StaffDbContext> staffFactory,
+    IDbContextFactory<StudentDbContext> studentFactory,
+    IDbContextFactory<AccessControlDbContext> accessControlFactory,
+    DeviceLogWriter writer,
     TurnstilePollingController controller,
     IOptionsMonitor<SimulationOptions> settings,
     IOptionsMonitor<MonitoringOptions> monitoringSettings,
@@ -12,15 +17,10 @@ public sealed class DemoDeviceLogGenerator(
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
 {
-    private static readonly (string AccessNumber, string Name)[] DemoPeople =
-    [
-        ("2026-0001", "Maria Santos"),
-        ("2026-0002", "John Reyes"),
-        ("2026-0003", "Angela Cruz"),
-        ("2026-0004", "Miguel Garcia")
-    ];
-
-    public static readonly string[] LogTypes = ["IN", "OUT", "BREAK OUT"];
+    public static readonly string[] LogTypes = ["IN", "OUT"];
+    public static readonly string[] Events = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
+    public static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
+    public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
 
     public static bool ShouldGenerate(SimulationOptions simulation, MonitoringOptions monitoring, bool monitoringActive) =>
         !simulation.IsLiveMode &&
@@ -43,10 +43,20 @@ public sealed class DemoDeviceLogGenerator(
                 var monitoring = monitoringSettings.CurrentValue;
                 if (!ShouldGenerate(settings.CurrentValue, monitoring, controller.IsActive)) continue;
 
-                var entry = CreateEntry(monitoring, time.GetUtcNow(), random);
-                state.Add(entry);
-                state.Prune(time.GetUtcNow().AddMilliseconds(-monitoring.FeedRetentionDuration));
-                logger.LogDebug("Generated temporary demo turnstile event {LogId}", entry.TimeLogId);
+                var accessNumbers = await LoadAccessNumbersAsync(token);
+                var serialNumbers = await LoadDeviceSerialNumbersAsync(token);
+                if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
+                {
+                    logger.LogWarning("Demo log was not inserted because no directory access numbers or device serial numbers are available");
+                    continue;
+                }
+
+                var id = await writer.InsertDemoAsync(
+                    accessNumbers[random.Next(accessNumbers.Count)],
+                    serialNumbers[random.Next(serialNumbers.Count)],
+                    random,
+                    token);
+                logger.LogInformation("Inserted demo DeviceLogs record {LogId}", id);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -54,30 +64,23 @@ public sealed class DemoDeviceLogGenerator(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Simulated log generation failed; a later cycle will retry");
+                logger.LogError(exception, "Demo DeviceLogs insertion failed; a later cycle will retry");
             }
         }
     }
 
-    public static TurnstileLogEntry CreateEntry(MonitoringOptions monitoring, DateTimeOffset timestamp, Random random)
+    private async Task<List<string>> LoadAccessNumbersAsync(CancellationToken token)
     {
-        var person = DemoPeople[random.Next(DemoPeople.Length)];
-        var device = string.IsNullOrWhiteSpace(monitoring.DeviceId) || monitoring.DeviceId.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? "Demo Gate"
-            : monitoring.DeviceId.Trim();
+        await using var staff = await staffFactory.CreateDbContextAsync(token);
+        await using var students = await studentFactory.CreateDbContextAsync(token);
+        var staffNumbers = await staff.People.AsNoTracking().Select(x => x.Field15).Where(x => x != "").ToListAsync(token);
+        var studentNumbers = await students.People.AsNoTracking().Select(x => x.Field15).Where(x => x != "").ToListAsync(token);
+        return staffNumbers.Concat(studentNumbers).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
 
-        return new TurnstileLogEntry(
-            Guid.NewGuid(),
-            timestamp,
-            LogTypes[random.Next(LogTypes.Length)],
-            person.AccessNumber,
-            person.Name,
-            "/img/avatar-placeholder.svg",
-            device,
-            device,
-            "DEMO",
-            "Simulated event",
-            "Demo mode",
-            "SMS disabled for demo event.");
+    private async Task<List<string>> LoadDeviceSerialNumbersAsync(CancellationToken token)
+    {
+        await using var db = await accessControlFactory.CreateDbContextAsync(token);
+        return await db.ZkDevices.AsNoTracking().Select(x => x.SerialNumber).Where(x => x != "").ToListAsync(token);
     }
 }
