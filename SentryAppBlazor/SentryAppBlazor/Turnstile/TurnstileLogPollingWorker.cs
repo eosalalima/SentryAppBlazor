@@ -14,8 +14,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested) { try { await controller.WaitUntilActiveAsync(stoppingToken); if (!controller.IsActive) continue; var options=settings.CurrentValue; if (ShouldPollDatabase(options)) await PollOnceAsync(stoppingToken); await Task.Delay(options.PollingInterval, stoppingToken); } catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; } catch (Exception ex) { logger.LogError(ex, "Turnstile poll failed; it will be retried"); await Task.Delay(settings.CurrentValue.PollingInterval, stoppingToken); } }
     }
-    public static bool ShouldPollDatabase(MonitoringOptions options) =>
-        !options.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase);
+    public static bool ShouldPollDatabase(MonitoringOptions options) => true;
     internal async Task PollOnceAsync(CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
