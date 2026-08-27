@@ -6,6 +6,17 @@ public sealed class TurnstileServicesTests
 {
     [Fact] public void Polling_controller_starts_and_stops() { var c=new TurnstilePollingController(); Assert.False(c.IsActive); c.Start(); Assert.True(c.IsActive); c.Stop(); Assert.False(c.IsActive); }
     [Fact] public async Task Polling_controller_wait_is_cancellable() { var c=new TurnstilePollingController(); using var cancel=new CancellationTokenSource(); cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>c.WaitUntilActiveAsync(cancel.Token)); }
+    [Fact]
+    public async Task Polling_controller_start_releases_all_waiting_workers()
+    {
+        var controller = new TurnstilePollingController();
+        var poller = controller.WaitUntilActiveAsync(CancellationToken.None);
+        var generator = controller.WaitUntilActiveAsync(CancellationToken.None);
+
+        controller.Start();
+
+        await Task.WhenAll(poller, generator).WaitAsync(TimeSpan.FromSeconds(1));
+    }
     [Fact] public void Seen_ids_reject_duplicates() { var c=new RecentlySeenIds(10); var id=Guid.NewGuid(); Assert.True(c.Add(id)); Assert.False(c.Add(id)); }
     [Fact] public void Seen_ids_are_bounded_and_expire_oldest() { var c=new RecentlySeenIds(10); var first=Guid.NewGuid(); c.Add(first); for(var i=0;i<10;i++)c.Add(Guid.NewGuid()); Assert.Equal(10,c.Count); Assert.True(c.Add(first)); }
     [Fact] public void Feed_is_bounded() { var s=new TurnstileLogState(); for(var i=0;i<220;i++)s.Add(Entry(Guid.NewGuid())); Assert.Equal(200,s.Entries.Count); }
@@ -34,6 +45,8 @@ public sealed class TurnstileServicesTests
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(Microsoft.EntityFrameworkCore.IDbContextFactory<SentryAppBlazor.Data.StaffDbContext>));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(Microsoft.EntityFrameworkCore.IDbContextFactory<SentryAppBlazor.Data.StudentDbContext>));
     }
     [Theory] [InlineData("Demo")] [InlineData("demo")] [InlineData("Live")]
     public void Database_polling_runs_in_all_modes(string mode) =>

@@ -6,8 +6,6 @@ using SentryAppBlazor.Services;
 namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
-    IDbContextFactory<StaffDbContext> staffFactory,
-    IDbContextFactory<StudentDbContext> studentFactory,
     IDbContextFactory<AccessControlDbContext> accessControlFactory,
     DeviceLogWriter writer,
     TurnstilePollingController controller,
@@ -34,14 +32,14 @@ public sealed class DemoDeviceLogGenerator(
         {
             try
             {
-                var simulation = settings.CurrentValue;
-                await Task.Delay(
-                    TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
-                    time,
-                    token);
-
+                await controller.WaitUntilActiveAsync(token);
                 var monitoring = monitoringSettings.CurrentValue;
-                if (!ShouldGenerate(settings.CurrentValue, monitoring, controller.IsActive)) continue;
+                var simulation = settings.CurrentValue;
+                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), time, token);
+                    continue;
+                }
 
                 var accessNumbers = await LoadAccessNumbersAsync(token);
                 var serialNumbers = await LoadDeviceSerialNumbersAsync(token);
@@ -57,6 +55,11 @@ public sealed class DemoDeviceLogGenerator(
                     random,
                     token);
                 logger.LogInformation("Inserted demo DeviceLogs record {LogId}", id);
+
+                await Task.Delay(
+                    TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
+                    time,
+                    token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -71,11 +74,11 @@ public sealed class DemoDeviceLogGenerator(
 
     private async Task<List<string>> LoadAccessNumbersAsync(CancellationToken token)
     {
-        await using var staff = await staffFactory.CreateDbContextAsync(token);
-        await using var students = await studentFactory.CreateDbContextAsync(token);
-        var staffNumbers = await staff.People.AsNoTracking().Select(x => x.Field15).Where(x => x != "").ToListAsync(token);
-        var studentNumbers = await students.People.AsNoTracking().Select(x => x.Field15).Where(x => x != "").ToListAsync(token);
-        return staffNumbers.Concat(studentNumbers).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        await using var db = await accessControlFactory.CreateDbContextAsync(token);
+        return await db.Personnels.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.AccessNumber != "")
+            .Select(x => x.AccessNumber)
+            .ToListAsync(token);
     }
 
     private async Task<List<string>> LoadDeviceSerialNumbersAsync(CancellationToken token)
