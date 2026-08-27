@@ -29,7 +29,7 @@ public sealed class TurnstileServicesTests
             active));
     }
     [Fact]
-    public void Generator_creates_a_displayable_demo_event_without_database_data()
+    public void Generator_creates_a_displayable_demo_event_ready_for_persistence()
     {
         var timestamp = DateTimeOffset.Parse("2026-08-26T12:00:00Z");
         var entry = DemoDeviceLogGenerator.CreateEntry(

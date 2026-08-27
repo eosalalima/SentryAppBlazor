@@ -6,6 +6,7 @@ namespace SentryAppBlazor.Turnstile;
 public sealed class DemoDeviceLogGenerator(
     TurnstileLogState state,
     TurnstilePollingController controller,
+    DeviceLogWriter logWriter,
     IOptionsMonitor<SimulationOptions> settings,
     IOptionsMonitor<MonitoringOptions> monitoringSettings,
     TimeProvider time,
@@ -44,9 +45,16 @@ public sealed class DemoDeviceLogGenerator(
                 if (!ShouldGenerate(settings.CurrentValue, monitoring, controller.IsActive)) continue;
 
                 var entry = CreateEntry(monitoring, time.GetUtcNow(), random);
+                var persistedId = await logWriter.InsertAsync(
+                    entry.AccessNumber!,
+                    entry.DeviceSerialNumber!,
+                    entry.LogType!,
+                    "DEMO",
+                    token);
+                entry = entry with { TimeLogId = persistedId };
                 state.Add(entry);
                 state.Prune(time.GetUtcNow().AddMilliseconds(-monitoring.FeedRetentionDuration));
-                logger.LogDebug("Generated demo turnstile event {LogId}", entry.TimeLogId);
+                logger.LogDebug("Generated and persisted demo turnstile event {LogId}", entry.TimeLogId);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
