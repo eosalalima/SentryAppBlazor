@@ -40,13 +40,34 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
+        var demoWasEnabled = false;
+
         while (!token.IsCancellationRequested)
         {
             try
             {
                 var simulation = CurrentSimulation(configuration, settings.CurrentValue);
-                await Task.Delay(TimeSpan.FromSeconds(random.Next(1, 11)), time, token);
                 var monitoring = monitoringSettings.CurrentValue;
+                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
+
+                // Hosted services must not depend on a browser clicking Start. Wake
+                // both the generator and poller when the application starts in demo
+                // mode, and when sentryconfig.json is later changed into demo mode.
+                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled))
+                    controller.TryStart();
+                demoWasEnabled = demoIsEnabled;
+
+                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), time, token);
+                    continue;
+                }
+
+                await Task.Delay(GetDelay(simulation, random), time, token);
+
+                // The operator may stop monitoring or enable live mode while the
+                // delay is in progress, so recheck every write-safety condition.
+                monitoring = monitoringSettings.CurrentValue;
                 simulation = CurrentSimulation(configuration, settings.CurrentValue);
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                     continue;
@@ -85,6 +106,13 @@ public sealed class DemoDeviceLogGenerator(
 
     internal static bool ShouldStartMonitoring(bool demoWasEnabled, bool demoIsEnabled) =>
         demoIsEnabled && !demoWasEnabled;
+
+    internal static TimeSpan GetDelay(SimulationOptions simulation, Random random)
+    {
+        var minimum = Math.Max(1, simulation.MinimumDelaySeconds);
+        var maximum = Math.Max(minimum, simulation.MaximumDelaySeconds);
+        return TimeSpan.FromSeconds(random.Next(minimum, maximum + 1));
+    }
 
     internal static TurnstileLogEntry CreateEntry(Random random, DateTimeOffset timestamp)
     {
