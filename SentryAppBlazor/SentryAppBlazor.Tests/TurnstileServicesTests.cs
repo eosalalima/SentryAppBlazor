@@ -51,16 +51,13 @@ public sealed class TurnstileServicesTests
             new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled }));
     }
     [Fact]
-    public void Generator_writes_demo_events_directly_to_the_feed()
+    public void Generator_writes_demo_events_to_device_logs_for_polling()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
-        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
     }
-    [Theory] [InlineData("Demo", false)] [InlineData("demo", false)] [InlineData("Live", true)]
-    public void Database_polling_is_skipped_for_standalone_demo_mode(string mode, bool expected) =>
-        Assert.Equal(expected, TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
     [Fact]
     public void Demo_entry_contains_displayable_person_and_device_data()
     {
