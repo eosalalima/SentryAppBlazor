@@ -3,7 +3,7 @@ using SentryAppBlazor.Services;
 namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
-    DeviceLogWriter deviceLogs,
+    TurnstileLogState state,
     TurnstilePollingController controller,
     MonitoringSettingsStore settings,
     TimeProvider time,
@@ -61,12 +61,11 @@ public sealed class DemoDeviceLogGenerator(
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                     continue;
 
-                // Persist first. Only the polling worker is allowed to publish the
-                // row to the UI, exactly as it does for physical turnstile logs.
-                var logId = await deviceLogs.InsertDemoAsync(random, token);
+                var entry = CreateEntry(random, time.GetLocalNow());
+                state.Add(entry);
                 logger.LogInformation(
-                    "Inserted demo turnstile event {LogId} into DeviceLogs; it will be displayed by the polling worker",
-                    logId);
+                    "Published in-memory demo turnstile event {LogId}",
+                    entry.TimeLogId);
 
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -89,6 +88,19 @@ public sealed class DemoDeviceLogGenerator(
         var minimum = Math.Max(1, simulation.MinimumDelaySeconds);
         var maximum = Math.Max(minimum, simulation.MaximumDelaySeconds);
         return TimeSpan.FromSeconds(random.Next(minimum, maximum + 1));
+    }
+
+    internal static TurnstileLogEntry CreateEntry(Random random, DateTimeOffset timestamp)
+    {
+        string[] names = ["Maria Santos", "Daniel Reyes", "Angela Cruz", "Noel Garcia"];
+        var logType = LogTypes[random.Next(LogTypes.Length)];
+        var deviceNumber = random.Next(1, 4);
+        return new(
+            Guid.NewGuid(), timestamp, logType,
+            $"DEMO-{random.Next(1, 10_000):0000}", names[random.Next(names.Length)],
+            "/img/avatar-placeholder.svg", $"DEMO-GATE-{deviceNumber}", $"Demo Gate {deviceNumber}",
+            VerifyModes[random.Next(VerifyModes.Length)], Events[random.Next(Events.Length)],
+            EventAddresses[random.Next(EventAddresses.Length)], "SMS disabled for demo events.");
     }
 
 }
