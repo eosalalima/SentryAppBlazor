@@ -66,8 +66,9 @@ public sealed class DemoDeviceLogGenerator(
                     time,
                     token);
 
-                var entry = CreateEntry(random, time.GetLocalNow());
-                var logId = await deviceLogs.InsertDemoAsync(entry, token);
+                // Use real active personnel and devices so database constraints are
+                // satisfied and the new row matches the poller's device filter.
+                var logId = await deviceLogs.InsertDemoAsync(random, monitoring.DeviceId, token);
                 logger.LogInformation(
                     "Inserted demo turnstile event {LogId} into DeviceLogs; it will be displayed by the polling worker",
                     logId);

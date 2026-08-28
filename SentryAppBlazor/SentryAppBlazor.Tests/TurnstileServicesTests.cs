@@ -59,6 +59,14 @@ public sealed class TurnstileServicesTests
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
     }
     [Fact]
+    public void Demo_writer_accepts_the_monitoring_device_filter()
+    {
+        var method = typeof(DeviceLogWriter).GetMethod(nameof(DeviceLogWriter.InsertDemoAsync));
+
+        Assert.NotNull(method);
+        Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(string));
+    }
+    [Fact]
     public void Demo_entry_contains_displayable_person_and_device_data()
     {
         var entry = DemoDeviceLogGenerator.CreateEntry(new Random(1), DateTimeOffset.UnixEpoch);
