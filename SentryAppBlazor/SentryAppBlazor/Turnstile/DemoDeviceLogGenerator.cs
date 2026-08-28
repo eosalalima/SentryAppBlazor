@@ -1,13 +1,10 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using SentryAppBlazor.Data;
 using SentryAppBlazor.Services;
 
 namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
-    IDbContextFactory<AccessControlDbContext> accessControlFactory,
-    DeviceLogWriter writer,
+    TurnstileLogState state,
     TurnstilePollingController controller,
     IOptionsMonitor<SimulationOptions> settings,
     IOptionsMonitor<MonitoringOptions> monitoringSettings,
@@ -19,6 +16,18 @@ public sealed class DemoDeviceLogGenerator(
     public static readonly string[] Events = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
     public static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
     public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
+    private static readonly (string AccessNumber, string Name)[] People =
+    [
+        ("2026-0001", "Maria Santos"),
+        ("2026-0002", "Daniel Reyes"),
+        ("2026-0003", "Angela Cruz"),
+        ("2026-0004", "Noel Garcia")
+    ];
+    private static readonly (string SerialNumber, string Name)[] Devices =
+    [
+        ("DEMO-GATE-1", "Main Gate"),
+        ("DEMO-GATE-2", "North Gate")
+    ];
 
     public static bool ShouldGenerate(SimulationOptions simulation, MonitoringOptions monitoring, bool monitoringActive) =>
         IsDemoEnabled(simulation, monitoring) && monitoringActive;
@@ -57,23 +66,9 @@ public sealed class DemoDeviceLogGenerator(
                     time,
                     token);
 
-                // Resolve the directory values immediately before writing so a
-                // deleted person or device is not retained between demo cycles.
-                var accessNumbers = await LoadAccessNumbersAsync(token);
-                var serialNumbers = await LoadDeviceSerialNumbersAsync(token);
-                if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
-                {
-                    logger.LogWarning("Demo log was not inserted because no directory access numbers or device serial numbers are available");
-                    await Task.Delay(TimeSpan.FromSeconds(1), time, token);
-                    continue;
-                }
-
-                var id = await writer.InsertDemoAsync(
-                    accessNumbers[random.Next(accessNumbers.Count)],
-                    serialNumbers[random.Next(serialNumbers.Count)],
-                    random,
-                    token);
-                logger.LogInformation("Inserted demo DeviceLogs record {LogId}", id);
+                var entry = CreateEntry(random, time.GetLocalNow());
+                state.Add(entry);
+                logger.LogInformation("Generated demo turnstile event {LogId}", entry.TimeLogId);
 
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -82,24 +77,21 @@ public sealed class DemoDeviceLogGenerator(
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Demo DeviceLogs insertion failed; a later cycle will retry");
+                logger.LogError(exception, "Demo event generation failed; a later cycle will retry");
                 await Task.Delay(TimeSpan.FromSeconds(1), time, token);
             }
         }
     }
 
-    private async Task<List<string>> LoadAccessNumbersAsync(CancellationToken token)
+    internal static TurnstileLogEntry CreateEntry(Random random, DateTimeOffset timestamp)
     {
-        await using var db = await accessControlFactory.CreateDbContextAsync(token);
-        return await db.Personnels.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.AccessNumber != "")
-            .Select(x => x.AccessNumber)
-            .ToListAsync(token);
-    }
-
-    private async Task<List<string>> LoadDeviceSerialNumbersAsync(CancellationToken token)
-    {
-        await using var db = await accessControlFactory.CreateDbContextAsync(token);
-        return await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted && x.SerialNumber != "").Select(x => x.SerialNumber).ToListAsync(token);
+        var person = People[random.Next(People.Length)];
+        var device = Devices[random.Next(Devices.Length)];
+        return new TurnstileLogEntry(
+            Guid.NewGuid(), timestamp, LogTypes[random.Next(LogTypes.Length)],
+            person.AccessNumber, person.Name, "/img/avatar-placeholder.svg",
+            device.SerialNumber, device.Name, VerifyModes[random.Next(VerifyModes.Length)],
+            Events[random.Next(Events.Length)], EventAddresses[random.Next(EventAddresses.Length)],
+            "Demo event — SMS not sent.");
     }
 }
