@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Turnstile;
-public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, TimeProvider time, ILogger<DeviceLogWriter> logger)
+public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, ILogger<DeviceLogWriter> logger)
 {
     public async Task<Guid> InsertDemoAsync(Random random, CancellationToken token)
     {
@@ -53,8 +53,11 @@ public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> fa
     private async Task<Guid> InsertAsync(AccessControlDbContext db, string accessNumber, string serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(accessNumber)||string.IsNullOrWhiteSpace(serial)||!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("Valid personnel, device, and log type are required.");
-        var now=time.GetLocalNow(); var id=Guid.NewGuid();
+        var id=Guid.NewGuid();
+        // Use the database clock for the row's watermark columns.  The polling
+        // cursor is also based on the database clock, so a clock/time-zone skew
+        // between IIS and SQL Server cannot make a newly inserted row look old.
         await db.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO dbo.DeviceLogs (Id,DateCreated,IsDeleted,RecordDate,TimeLogStamp,AccessNumber,DeviceSerialNumber,CardNo,SiteCode,LinkId,Event,EventAddress,LogType,VerifyMode,[Index],HasMask,Temperature,IsNotified)
-VALUES ({id},{now},0,{now.DateTime},{now},{accessNumber},{serial},{cardNo},NULL,NULL,{eventCode},{eventAddress},{logType},{verifyMode},0,NULL,NULL,NULL)",token); return id;
+VALUES ({id},SYSDATETIMEOFFSET(),0,CONVERT(date,SYSDATETIMEOFFSET()),SYSDATETIMEOFFSET(),{accessNumber},{serial},{cardNo},NULL,NULL,{eventCode},{eventAddress},{logType},{verifyMode},0,NULL,NULL,NULL)",token); return id;
     }
 }

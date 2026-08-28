@@ -32,7 +32,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         this.lookup = lookup; this.sms = sms; this.photos = photos;
         this.settings = settings; this.configuration = configuration;
         this.time = time; this.logger = logger;
-        ResetCursor(TurnstilePollingOptions.FromConfiguration(configuration, settings.Current).LookbackSecondsOnStart);
+        RequestCursorReset();
         controller.StatusChanged += OnStatusChanged;
     }
 
@@ -49,7 +49,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                 var options = TurnstilePollingOptions.FromConfiguration(configuration, settings.Current);
                 if (resetRequested)
                 {
-                    ResetCursor(options.LookbackSecondsOnStart);
+                    await ResetCursorAsync(options.LookbackSecondsOnStart, stoppingToken);
                     resetRequested = false;
                 }
                 if (timer is null || timerInterval != options.IntervalMs)
@@ -139,8 +139,21 @@ ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
     }
 
     private void Advance(TurnstileLogRow row) { lastTimestamp = row.TimeLogStamp; lastId = row.TimeLogId; }
-    private void OnStatusChanged(bool active) { if (active) resetRequested = true; }
-    internal void ResetCursor(int lookbackSeconds) { lastTimestamp = time.GetUtcNow().AddSeconds(-lookbackSeconds); lastId = Guid.Empty; }
+    private void OnStatusChanged(bool active) { if (active) RequestCursorReset(); }
+    private void RequestCursorReset() => resetRequested = true;
+
+    private async Task ResetCursorAsync(int lookbackSeconds, CancellationToken token)
+    {
+        await using var db = await factory.CreateDbContextAsync(token);
+        // DeviceLogs timestamps originate in SQL Server.  Initializing this
+        // watermark from the web server's clock can skip every new row when the
+        // two machines differ by more than the (usually three-second) lookback.
+        lastTimestamp = await db.Database
+            .SqlQuery<DateTimeOffset>($"SELECT DATEADD(SECOND, {-lookbackSeconds}, SYSDATETIMEOFFSET()) AS Value")
+            .SingleAsync(token);
+        lastId = Guid.Empty;
+        logger.LogInformation("Turnstile polling cursor initialized from the database clock at {Cursor}", lastTimestamp);
+    }
     internal (DateTimeOffset Timestamp, Guid Id) Cursor => (lastTimestamp, lastId);
 
     public override void Dispose()
