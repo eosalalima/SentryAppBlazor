@@ -68,6 +68,32 @@ public sealed class TurnstileServicesTests
         Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
     }
     [Fact]
+    public void Legacy_persisted_demo_settings_override_live_appsettings_defaults()
+    {
+        var defaults = new SimulationOptions { IsLiveMode = true, EnableSimulatedLogs = false };
+        var monitoring = new MonitoringOptions { OperatingMode = "Demo", EnableSimulatedLogs = true };
+
+        var resolved = MonitoringSettingsStore.ResolveSimulation(false, monitoring, null, defaults);
+
+        Assert.False(resolved.IsLiveMode);
+        Assert.True(resolved.EnableSimulatedLogs);
+        Assert.True(DemoDeviceLogGenerator.IsDemoEnabled(resolved, monitoring));
+    }
+    [Fact]
+    public void Persisted_simulation_section_takes_precedence_over_legacy_settings()
+    {
+        var persisted = new SimulationOptions { IsLiveMode = true, EnableSimulatedLogs = false };
+
+        var resolved = MonitoringSettingsStore.ResolveSimulation(
+            false,
+            new MonitoringOptions { EnableSimulatedLogs = true },
+            persisted,
+            new SimulationOptions());
+
+        Assert.True(resolved.IsLiveMode);
+        Assert.False(resolved.EnableSimulatedLogs);
+    }
+    [Fact]
     public void Generator_writes_demo_records_to_device_logs()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
@@ -90,6 +116,14 @@ public sealed class TurnstileServicesTests
 
         Assert.NotNull(method);
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
+    }
+    [Fact]
+    public void Demo_writer_does_not_require_reference_table_services()
+    {
+        var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
+
+        Assert.Single(constructor.GetParameters());
+        Assert.Equal("factory", constructor.GetParameters()[0].Name);
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]

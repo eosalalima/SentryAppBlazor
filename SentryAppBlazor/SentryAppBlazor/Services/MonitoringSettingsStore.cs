@@ -16,7 +16,39 @@ public sealed class MonitoringSettingsStore(
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public MonitoringOptions Current => LoadCurrent();
-    public SimulationOptions CurrentSimulation => LoadConfig()?.Simulation?.Clone() ?? simulationOptions.CurrentValue.Clone();
+    public SimulationOptions CurrentSimulation
+    {
+        get
+        {
+            var config = LoadConfig();
+            return ResolveSimulation(
+                config?.IsLiveMode,
+                config?.Monitoring,
+                config?.Simulation,
+                simulationOptions.CurrentValue);
+        }
+    }
+
+    // Older sentryconfig.json files stored IsLiveMode at the root and the demo
+    // switch under Monitoring, without a Simulation section.  Falling all the
+    // way back to appsettings.json in that case silently re-enabled live mode,
+    // preventing the demo generator from ever writing a row.
+    internal static SimulationOptions ResolveSimulation(
+        bool? legacyIsLiveMode,
+        MonitoringOptions? monitoring,
+        SimulationOptions? persisted,
+        SimulationOptions defaults)
+    {
+        if (persisted is not null)
+            return persisted.Clone();
+
+        var resolved = defaults.Clone();
+        if (legacyIsLiveMode.HasValue)
+            resolved.IsLiveMode = legacyIsLiveMode.Value;
+        if (monitoring is not null)
+            resolved.EnableSimulatedLogs = monitoring.EnableSimulatedLogs;
+        return resolved;
+    }
 
     public async Task SaveAsync(MonitoringOptions monitoring, SimulationOptions simulation, CancellationToken cancellationToken = default)
     {
