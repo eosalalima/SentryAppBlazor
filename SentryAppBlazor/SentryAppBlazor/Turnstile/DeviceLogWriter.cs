@@ -4,7 +4,7 @@ using SentryAppBlazor.Data;
 namespace SentryAppBlazor.Turnstile;
 public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, TimeProvider time, ILogger<DeviceLogWriter> logger)
 {
-    public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
+    public async Task<Guid> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
         var accessNumbers = await db.Personnels.AsNoTracking()
@@ -16,13 +16,25 @@ public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> fa
             .Select(device => device.SerialNumber)
             .ToListAsync(token);
 
-        if (accessNumbers.Count == 0) { logger.LogWarning("Demo log skipped because no non-deleted personnel are available"); return null; }
-        if (serialNumbers.Count == 0) { logger.LogWarning("Demo log skipped because no non-deleted ZKTeco devices are available"); return null; }
+        // Reference rows improve the display, but are not required by the polling
+        // query (it deliberately uses LEFT JOINs). Always insert a DeviceLogs row
+        // so demo events exercise exactly the same database path as real events.
+        var accessNumber = accessNumbers.Count == 0
+            ? $"DEMO-{random.Next(1, 10_000):0000}"
+            : accessNumbers[random.Next(accessNumbers.Count)];
+        var serialNumber = serialNumbers.Count == 0
+            ? "DEMO-GATE-1"
+            : serialNumbers[random.Next(serialNumbers.Count)];
+
+        if (accessNumbers.Count == 0)
+            logger.LogWarning("No active personnel were found; inserting the demo DeviceLogs row with access number {AccessNumber}", accessNumber);
+        if (serialNumbers.Count == 0)
+            logger.LogWarning("No active devices were found; inserting the demo DeviceLogs row with serial number {SerialNumber}", serialNumber);
 
         return await InsertAsync(
             db,
-            accessNumbers[random.Next(accessNumbers.Count)],
-            serialNumbers[random.Next(serialNumbers.Count)],
+            accessNumber,
+            serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
             "TEST", "20", "1", "200",
             token);
