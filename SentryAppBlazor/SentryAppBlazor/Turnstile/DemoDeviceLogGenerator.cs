@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using SentryAppBlazor.Services;
 
 namespace SentryAppBlazor.Turnstile;
@@ -7,9 +6,7 @@ public sealed class DemoDeviceLogGenerator(
     DeviceLogWriter deviceLogs,
     TurnstileLogState state,
     TurnstilePollingController controller,
-    IOptionsMonitor<SimulationOptions> settings,
-    IOptionsMonitor<MonitoringOptions> monitoringSettings,
-    IConfiguration configuration,
+    MonitoringSettingsStore settings,
     TimeProvider time,
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
@@ -47,8 +44,12 @@ public sealed class DemoDeviceLogGenerator(
         {
             try
             {
-                var simulation = CurrentSimulation(configuration, settings.CurrentValue);
-                var monitoring = monitoringSettings.CurrentValue;
+                // Read the persisted file directly. Relying on IOptionsMonitor here
+                // made Apply dependent on the platform file-watcher noticing an
+                // atomic file replacement, so the hosted service could keep using
+                // its startup settings indefinitely.
+                var simulation = settings.CurrentSimulation;
+                var monitoring = settings.Current;
                 var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
 
                 // Hosted services must not depend on a browser clicking Start. Wake
@@ -68,8 +69,8 @@ public sealed class DemoDeviceLogGenerator(
 
                 // The operator may stop monitoring or enable live mode while the
                 // delay is in progress, so recheck every write-safety condition.
-                monitoring = monitoringSettings.CurrentValue;
-                simulation = CurrentSimulation(configuration, settings.CurrentValue);
+                monitoring = settings.Current;
+                simulation = settings.CurrentSimulation;
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                     continue;
 
@@ -116,18 +117,6 @@ public sealed class DemoDeviceLogGenerator(
                 await Task.Delay(TimeSpan.FromSeconds(1), time, token);
             }
         }
-    }
-
-    internal static SimulationOptions CurrentSimulation(IConfiguration configuration, SimulationOptions fallback)
-    {
-        var liveValue = configuration["IsLiveMode"];
-        return new SimulationOptions
-        {
-            IsLiveMode = bool.TryParse(liveValue, out var live) ? live : fallback.IsLiveMode,
-            EnableSimulatedLogs = fallback.EnableSimulatedLogs,
-            MinimumDelaySeconds = fallback.MinimumDelaySeconds,
-            MaximumDelaySeconds = fallback.MaximumDelaySeconds
-        };
     }
 
     internal static bool ShouldStartMonitoring(bool demoWasEnabled, bool demoIsEnabled) =>

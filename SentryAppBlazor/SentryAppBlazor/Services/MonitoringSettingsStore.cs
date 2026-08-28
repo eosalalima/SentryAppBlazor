@@ -82,7 +82,7 @@ public sealed class MonitoringSettingsStore(
             using var stream = File.OpenRead(configPath);
             return JsonSerializer.Deserialize<MonitoringConfigFile>(stream);
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(exception, "Unable to read monitoring settings from {ConfigPath}", configPath);
             return null;

@@ -74,6 +74,14 @@ public sealed class TurnstileServicesTests
 
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
+    }
+    [Fact]
+    public void Poller_reads_persisted_runtime_settings()
+    {
+        var constructor = Assert.Single(typeof(TurnstileLogPollingWorker).GetConstructors());
+
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
     }
     [Fact]
     public void Demo_writer_uses_a_random_source()

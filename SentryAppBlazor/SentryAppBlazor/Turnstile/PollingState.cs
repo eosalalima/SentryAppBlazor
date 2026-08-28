@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 using SentryAppBlazor.Services;
 
 namespace SentryAppBlazor.Turnstile;
@@ -59,12 +58,12 @@ public sealed class TurnstileLogState
     private readonly LinkedList<TurnstileLogEntry> incoming = [];
     private readonly LinkedList<TurnstileLogEntry> outgoing = [];
     private readonly RecentlySeenIds ids = new(2000);
-    private readonly IOptionsMonitor<MonitoringOptions>? options;
+    private readonly MonitoringSettingsStore? settings;
     private readonly TimeProvider time;
     private TurnstileLogEntry? spotlight;
 
     public TurnstileLogState() : this(null, TimeProvider.System) { }
-    public TurnstileLogState(IOptionsMonitor<MonitoringOptions>? options, TimeProvider time) { this.options=options; this.time=time; }
+    public TurnstileLogState(MonitoringSettingsStore? settings, TimeProvider time) { this.settings=settings; this.time=time; }
     public event Action? Changed;
     public TurnstileLogEntry? Spotlight { get { lock(gate) return spotlight; } }
     public IReadOnlyList<TurnstileLogEntry> InEntries => Snapshot(incoming);
@@ -93,7 +92,7 @@ public sealed class TurnstileLogState
 
     private async Task PromoteAndExpireAsync(TurnstileLogEntry entry)
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(options?.CurrentValue.HighlightDisplayDuration ?? 3000), time);
+        await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.HighlightDisplayDuration ?? 3000), time);
         lock(gate)
         {
             if(spotlight?.TimeLogId==entry.TimeLogId) spotlight=null;
@@ -102,7 +101,7 @@ public sealed class TurnstileLogState
             while(queue.Count>10) queue.RemoveLast();
         }
         NotifyChanged();
-        await Task.Delay(TimeSpan.FromMilliseconds(options?.CurrentValue.FeedRetentionDuration ?? 10000), time);
+        await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.FeedRetentionDuration ?? 10000), time);
         lock(gate)
         {
             var removed=RemoveById(incoming,entry.TimeLogId)|RemoveById(outgoing,entry.TimeLogId);
