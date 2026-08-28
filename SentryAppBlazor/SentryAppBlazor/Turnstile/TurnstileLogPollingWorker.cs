@@ -36,10 +36,15 @@ ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
         // timestamp, especially once a poll is limited by TOP.
         foreach (var row in rows)
         {
-            if (seen.Add(row.TimeLogId)) await ProcessAsync(row, token);
+            if (!seen.Contains(row.TimeLogId))
+            {
+                await ProcessAsync(row, token);
+                seen.Add(row.TimeLogId);
+            }
+            // The watermark is deliberately committed only after all enrichment,
+            // notification and state processing for this row has succeeded.
             lastTimestamp=row.TimeLogStamp; lastId=row.TimeLogId;
         }
-        state.Prune(time.GetUtcNow().AddMilliseconds(-options.FeedRetentionDuration));
     }
     private async Task ProcessAsync(TurnstileLogRow row, CancellationToken token)
     {

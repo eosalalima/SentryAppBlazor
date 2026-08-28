@@ -10,7 +10,7 @@ public sealed class MonitoringOptions
     public string DeviceId { get; set; } = "all";
     public string PhotosPath { get; set; } = @"F:\Projects\Dr. Gloria D Lacson School\Photos\Photos";
     [Range(250, 60_000)] public int PollingInterval { get; set; } = 500;
-    [Range(1_000, 60_000)] public int HighlightDisplayDuration { get; set; } = 5_000;
+    [Range(1_000, 60_000)] public int HighlightDisplayDuration { get; set; } = 3_000;
     [Range(1_000, 300_000)] public int FeedRetentionDuration { get; set; } = 10_000;
     [Range(0, 3_600)] public int LookbackSecondsOnStart { get; set; } = 3;
     [Range(1, 500)] public int MaxRowsPerPoll { get; set; } = 20;

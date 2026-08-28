@@ -1,0 +1,22 @@
+@using SentryAppBlazor.Turnstile
+<section class="log-group">
+    <div class="queue-heading"><h2>@Title</h2><span class="count">@Entries.Count / 10</span></div>
+    @if (Entries.Count == 0) { <p class="queue-empty">No @Title.ToLowerInvariant() records.</p> }
+    else
+    {
+        <div class="event-list">@foreach (var item in Entries)
+        {
+            <article class="event-row">
+                <img src="@item.PhotoUrl" alt="Portrait of @item.PersonnelName"/>
+                <div class="event-person"><strong>@item.PersonnelName</strong><small>Access @item.AccessNumber · @item.DeviceName</small><small>Event @Display(item.Event) · Verify @Display(item.VerifyMode) · @item.SmsStatusMessage</small></div>
+                <span class="direction @(IsIn(item) ? "entry" : "exit")">@item.LogType</span><time>@item.TimeLogStamp.ToLocalTime().ToString("g")</time>
+            </article>
+        }</div>
+    }
+</section>
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public IReadOnlyList<TurnstileLogEntry> Entries { get; set; } = [];
+    private static bool IsIn(TurnstileLogEntry item) => string.Equals(item.LogType,"IN",StringComparison.OrdinalIgnoreCase);
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "N/A" : value;
+}

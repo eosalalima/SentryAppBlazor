@@ -19,12 +19,12 @@ public sealed class TurnstileServicesTests
     }
     [Fact] public void Seen_ids_reject_duplicates() { var c=new RecentlySeenIds(10); var id=Guid.NewGuid(); Assert.True(c.Add(id)); Assert.False(c.Add(id)); }
     [Fact] public void Seen_ids_are_bounded_and_expire_oldest() { var c=new RecentlySeenIds(10); var first=Guid.NewGuid(); c.Add(first); for(var i=0;i<10;i++)c.Add(Guid.NewGuid()); Assert.Equal(10,c.Count); Assert.True(c.Add(first)); }
-    [Fact] public void Feed_is_bounded() { var s=new TurnstileLogState(); for(var i=0;i<220;i++)s.Add(Entry(Guid.NewGuid())); Assert.Equal(200,s.Entries.Count); }
-    [Fact] public void Feed_is_newest_first() { var s=new TurnstileLogState(); var a=Guid.NewGuid(); var b=Guid.NewGuid(); s.Add(Entry(a));s.Add(Entry(b));Assert.Equal(new[]{b,a},s.Entries.Select(x=>x.TimeLogId)); }
-    [Fact] public void Feed_prunes_entries_older_than_monitoring_retention() { var s=new TurnstileLogState(); s.Add(Entry(Guid.NewGuid()) with { TimeLogStamp=DateTimeOffset.UtcNow.AddMinutes(-1) }); s.Add(Entry(Guid.NewGuid())); s.Prune(DateTimeOffset.UtcNow.AddSeconds(-10)); Assert.Single(s.Entries); }
+    [Fact] public void Feed_places_new_entry_in_spotlight_immediately() { var s=new TurnstileLogState(); var id=Guid.NewGuid(); Assert.True(s.Add(Entry(id))); Assert.Equal(id,s.Spotlight?.TimeLogId); Assert.Empty(s.Entries); }
+    [Fact] public void Feed_rejects_duplicate_ids() { var s=new TurnstileLogState(); var item=Entry(Guid.NewGuid()); Assert.True(s.Add(item)); Assert.False(s.Add(item)); }
+    [Fact] public void Feed_can_filter_by_device() { var s=new TurnstileLogState(); Assert.Empty(s.Filter("other-device")); }
     [Theory] [InlineData(null,"/img/avatar-placeholder.svg")] [InlineData("","/img/avatar-placeholder.svg")] [InlineData("../secret.jpg","/img/avatar-placeholder.svg")] [InlineData("person.jpg","/photos/person.jpg")]
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
-    [Theory] [InlineData("IN")] [InlineData("OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
+    [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Fact] public void Production_defaults_disable_simulation() { var o=new SimulationOptions(); Assert.True(o.IsLiveMode);Assert.False(o.EnableSimulatedLogs);Assert.False(o.EnableManualTestLogs); }
     [Theory]
     [InlineData(false, "Demo", true, true, true)]

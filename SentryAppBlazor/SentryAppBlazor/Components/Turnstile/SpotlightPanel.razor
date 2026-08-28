@@ -1,0 +1,20 @@
+@using SentryAppBlazor.Turnstile
+<section class="spotlight-panel">
+    <div class="section-heading"><h2>Current event</h2></div>
+    @if (Entry is not null)
+    {
+        <div class="spotlight-card">
+            <div class="photo-frame"><img src="@Entry.PhotoUrl" alt="Portrait of @Entry.PersonnelName"/><span class="direction @(IsIn ? "entry" : "exit")">@Entry.LogType</span></div>
+            <div class="spotlight-copy">
+                <span class="eyebrow">LIVE TURNSTILE EVENT</span><h2>@Entry.PersonnelName</h2><p class="person-id">Access no. @Entry.AccessNumber</p>
+                <dl><div><dt>DEVICE</dt><dd>@Entry.DeviceName</dd></div><div><dt>TIME</dt><dd>@Entry.TimeLogStamp.ToLocalTime().ToString("g")</dd></div><div><dt>EVENT / VERIFICATION</dt><dd>@Display(Entry.Event) · @Display(Entry.VerifyMode)</dd></div><div><dt>SMS STATUS</dt><dd>@Entry.SmsStatusMessage</dd></div></dl>
+            </div>
+        </div>
+    }
+    else { <div class="waiting-card"><h2>Waiting for turnstile logs</h2><p>The next event will appear here immediately.</p></div> }
+</section>
+@code {
+    [Parameter] public TurnstileLogEntry? Entry { get; set; }
+    private bool IsIn => string.Equals(Entry?.LogType, "IN", StringComparison.OrdinalIgnoreCase);
+    private static string Display(string? value) => string.IsNullOrWhiteSpace(value) ? "Not provided" : value;
+}
