@@ -6,7 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="app.css" />
+    @* Keep the reconnect rules available even when a proxy or browser still has an
+       older app.css cached from before the reconnect UI was introduced. *@
+    <link rel="stylesheet" href="app.css?v=20260828.1" />
+    <style>
+        #components-reconnect-modal,
+        #components-reconnect-modal .reconnect-card > div {
+            display: none;
+        }
+
+        #components-reconnect-modal.components-reconnect-show,
+        #components-reconnect-modal.components-reconnect-failed,
+        #components-reconnect-modal.components-reconnect-rejected,
+        #components-reconnect-modal.components-reconnect-show .components-reconnect-show,
+        #components-reconnect-modal.components-reconnect-failed .components-reconnect-failed,
+        #components-reconnect-modal.components-reconnect-rejected .components-reconnect-rejected {
+            display: grid;
+        }
+    </style>
     <link rel="stylesheet" href="SentryAppBlazor.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
@@ -33,7 +50,7 @@
             </div>
         </div>
     </div>
-    <script src="reconnect.js"></script>
+    <script src="reconnect.js?v=20260828.1"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 
