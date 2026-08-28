@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using SentryAppBlazor.Data;
 using SentryAppBlazor.Services;
 
@@ -13,7 +12,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     private readonly PersonnelLookupService lookup;
     private readonly ISmsSender sms;
     private readonly IPhotoUrlBuilder photos;
-    private readonly IOptionsMonitor<MonitoringOptions> monitoring;
+    private readonly MonitoringSettingsStore settings;
     private readonly IConfiguration configuration;
     private readonly TimeProvider time;
     private readonly ILogger<TurnstileLogPollingWorker> logger;
@@ -26,14 +25,14 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     public TurnstileLogPollingWorker(
         IDbContextFactory<AccessControlDbContext> factory, TurnstilePollingController controller,
         TurnstileLogState state, PersonnelLookupService lookup, ISmsSender sms,
-        IPhotoUrlBuilder photos, IOptionsMonitor<MonitoringOptions> monitoring,
+        IPhotoUrlBuilder photos, MonitoringSettingsStore settings,
         IConfiguration configuration, TimeProvider time, ILogger<TurnstileLogPollingWorker> logger)
     {
         this.factory = factory; this.controller = controller; this.state = state;
         this.lookup = lookup; this.sms = sms; this.photos = photos;
-        this.monitoring = monitoring; this.configuration = configuration;
+        this.settings = settings; this.configuration = configuration;
         this.time = time; this.logger = logger;
-        ResetCursor(TurnstilePollingOptions.FromConfiguration(configuration, monitoring.CurrentValue).LookbackSecondsOnStart);
+        ResetCursor(TurnstilePollingOptions.FromConfiguration(configuration, settings.Current).LookbackSecondsOnStart);
         controller.StatusChanged += OnStatusChanged;
     }
 
@@ -47,7 +46,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                 await controller.WaitUntilActiveAsync(stoppingToken);
                 if (!controller.IsActive) continue;
 
-                var options = TurnstilePollingOptions.FromConfiguration(configuration, monitoring.CurrentValue);
+                var options = TurnstilePollingOptions.FromConfiguration(configuration, settings.Current);
                 if (resetRequested)
                 {
                     ResetCursor(options.LookbackSecondsOnStart);
@@ -79,7 +78,8 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
             seen.Remove(expired);
 
         await using var db = await factory.CreateDbContextAsync(token);
-        var deviceId = string.IsNullOrWhiteSpace(monitoring.CurrentValue.DeviceId) ? "all" : monitoring.CurrentValue.DeviceId.Trim();
+        var monitoring = settings.Current;
+        var deviceId = string.IsNullOrWhiteSpace(monitoring.DeviceId) ? "all" : monitoring.DeviceId.Trim();
         var maximumRows = Math.Clamp(options.MaxRowsPerPoll, 1, 500);
         FormattableString query = $@"SELECT TOP ({maximumRows}) dl.Id AS TimeLogId, dl.TimeLogStamp, dl.LogType, dl.AccessNumber, dl.DeviceSerialNumber, dl.VerifyMode,
 p.LastName, p.FirstName, p.PhotoId, dl.Event, dl.EventAddress, zk.Name AS DeviceName
@@ -113,7 +113,8 @@ ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
         var name = FormatPersonnelName(row.FirstName, row.LastName);
         var device = string.IsNullOrWhiteSpace(row.DeviceName) ? row.DeviceSerialNumber ?? "Unknown device" : row.DeviceName.Trim();
         var status = "SMS disabled in monitoring settings.";
-        if (monitoring.CurrentValue.SmsEnabled)
+        var monitoring = settings.Current;
+        if (monitoring.SmsEnabled)
         {
             var mobile = await lookup.FindMobileAsync(row.AccessNumber, token);
             if (mobile is null) status = "SMS not sent: missing mobile number.";
