@@ -11,13 +11,13 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode is database-free</strong><span>When explicitly enabled below, Demo mode creates temporary sample events in memory. It does not read or write the configured databases.</span></div>
+    <div class="notice"><strong>Demo mode uses DeviceLogs</strong><span>When explicitly enabled below, Demo mode inserts sample events for active personnel and devices into the configured Access Control database.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
-            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo displays temporary events without requiring a database connection.</small></label>
+            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes valid sample records to DeviceLogs and requires active personnel and device records.</small></label>
             <label>Automatic demo logs<select @onchange="UpdateAutomaticDemoLogs"><option value="enabled" selected="@Model.EnableSimulatedLogs">Enabled</option><option value="disabled" selected="@(!Model.EnableSimulatedLogs)">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>

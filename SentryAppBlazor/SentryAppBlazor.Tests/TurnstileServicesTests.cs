@@ -1,6 +1,7 @@
 using SentryAppBlazor.Services;
 using SentryAppBlazor.Turnstile;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace SentryAppBlazor.Tests;
 public sealed class TurnstileServicesTests
@@ -118,12 +119,13 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_does_not_require_reference_table_services()
+    public void Demo_writer_has_only_database_and_logging_dependencies()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Single(constructor.GetParameters());
+        Assert.Equal(2, constructor.GetParameters().Length);
         Assert.Equal("factory", constructor.GetParameters()[0].Name);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]
