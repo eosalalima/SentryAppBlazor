@@ -51,17 +51,27 @@ public sealed class TurnstileServicesTests
             new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled }));
     }
     [Fact]
-    public void Generator_requires_a_database_writer()
+    public void Generator_writes_demo_events_directly_to_the_feed()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
-        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(Microsoft.EntityFrameworkCore.IDbContextFactory<SentryAppBlazor.Data.StaffDbContext>));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(Microsoft.EntityFrameworkCore.IDbContextFactory<SentryAppBlazor.Data.StudentDbContext>));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
     }
-    [Theory] [InlineData("Demo")] [InlineData("demo")] [InlineData("Live")]
-    public void Database_polling_runs_in_all_modes(string mode) =>
-        Assert.True(TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
+    [Theory] [InlineData("Demo", false)] [InlineData("demo", false)] [InlineData("Live", true)]
+    public void Database_polling_is_skipped_for_standalone_demo_mode(string mode, bool expected) =>
+        Assert.Equal(expected, TurnstileLogPollingWorker.ShouldPollDatabase(new MonitoringOptions { OperatingMode=mode }));
+    [Fact]
+    public void Demo_entry_contains_displayable_person_and_device_data()
+    {
+        var entry = DemoDeviceLogGenerator.CreateEntry(new Random(1), DateTimeOffset.UnixEpoch);
+
+        Assert.Equal(DateTimeOffset.UnixEpoch, entry.TimeLogStamp);
+        Assert.False(string.IsNullOrWhiteSpace(entry.AccessNumber));
+        Assert.False(string.IsNullOrWhiteSpace(entry.PersonnelName));
+        Assert.StartsWith("DEMO-GATE-", entry.DeviceSerialNumber);
+        Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
+    }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }
