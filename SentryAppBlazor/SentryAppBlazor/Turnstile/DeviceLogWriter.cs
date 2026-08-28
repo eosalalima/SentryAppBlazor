@@ -2,18 +2,47 @@ using Microsoft.EntityFrameworkCore;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Turnstile;
-public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory)
+public sealed class DeviceLogWriter(
+    IDbContextFactory<AccessControlDbContext> factory,
+    ILogger<DeviceLogWriter> logger)
 {
     public async Task<Guid> InsertDemoAsync(Random random, CancellationToken token)
     {
-        // Do not query reference tables before this insert. Demo writers are
-        // intentionally allowed to use an INSERT-only database identity, and the
-        // poller's LEFT JOINs already support these clearly synthetic values.
+        await using var db = await factory.CreateDbContextAsync(token);
+
+        // DeviceLogs installations commonly enforce foreign keys to Personnels
+        // and ZKDevices. Synthetic DEMO-* identifiers therefore make the INSERT
+        // fail even though the polling query uses LEFT JOINs. Select real active
+        // keys so the generated row is valid for the deployed schema.
+        var accessNumbers = await db.Personnels.AsNoTracking()
+            .Where(person => !person.IsDeleted && person.AccessNumber != "")
+            .Select(person => person.AccessNumber)
+            .ToListAsync(token);
+        var serialNumbers = await db.ZkDevices.AsNoTracking()
+            .Where(device => !device.IsDeleted && device.SerialNumber != "")
+            .Select(device => device.SerialNumber)
+            .ToListAsync(token);
+
+        if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
+            throw new InvalidOperationException(
+                "Demo DeviceLogs require at least one active Personnel and ZKDevice record.");
+
+        var accessNumber = accessNumbers[random.Next(accessNumbers.Count)];
+        var serialNumber = serialNumbers[random.Next(serialNumbers.Count)];
+        logger.LogDebug(
+            "Creating demo DeviceLogs record for personnel {AccessNumber} at device {SerialNumber}",
+            accessNumber,
+            serialNumber);
+
         return await InsertAsync(
-            $"DEMO-{random.Next(1, 10_000):0000}",
-            $"DEMO-GATE-{random.Next(1, 4)}",
+            db,
+            accessNumber,
+            serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "TEST",
+            random.NextInt64(1, 10_000_000_000).ToString(),
+            DemoDeviceLogGenerator.Events[random.Next(DemoDeviceLogGenerator.Events.Length)],
+            DemoDeviceLogGenerator.EventAddresses[random.Next(DemoDeviceLogGenerator.EventAddresses.Length)],
+            DemoDeviceLogGenerator.VerifyModes[random.Next(DemoDeviceLogGenerator.VerifyModes.Length)],
             token);
     }
 
