@@ -47,11 +47,6 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                 if (!controller.IsActive) continue;
 
                 var options = TurnstilePollingOptions.FromConfiguration(configuration, settings.Current);
-                if (resetRequested)
-                {
-                    await ResetCursorAsync(options.LookbackSecondsOnStart, stoppingToken);
-                    resetRequested = false;
-                }
                 if (timer is null || timerInterval != options.IntervalMs)
                 {
                     timer?.Dispose();
@@ -59,9 +54,27 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                     timer = new PeriodicTimer(TimeSpan.FromMilliseconds(timerInterval), time);
                 }
 
-                try { await PollOnceAsync(options, stoppingToken); }
+                try
+                {
+                    // Cursor initialization talks to SQL Server too, so it must use
+                    // the same retry boundary as a normal poll. Previously, an
+                    // unavailable database here escaped ExecuteAsync and caused the
+                    // generic host (and therefore IIS/Blazor) to shut down.
+                    if (resetRequested)
+                    {
+                        await ResetCursorAsync(options.LookbackSecondsOnStart, stoppingToken);
+                        resetRequested = false;
+                    }
+
+                    await PollOnceAsync(options, stoppingToken);
+                }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-                catch (Exception exception) { logger.LogError(exception, "Turnstile poll failed; the unacknowledged row will be retried"); }
+                catch (Exception exception)
+                {
+                    logger.LogError(
+                        exception,
+                        "Turnstile database operation failed; monitoring will retry without stopping the web server");
+                }
 
                 if (controller.IsActive)
                     await timer.WaitForNextTickAsync(stoppingToken);

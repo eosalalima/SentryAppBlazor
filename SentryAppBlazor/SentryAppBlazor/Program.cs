@@ -10,6 +10,10 @@ using SentryAppBlazor.Turnstile;
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile(MonitoringSettingsStore.ConfigFileName, optional: true, reloadOnChange: true);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+// Database monitoring is an auxiliary workload. If a hosted worker ever escapes its
+// own retry loop, keep the IIS-hosted web application and its diagnostics UI alive.
+builder.Services.Configure<HostOptions>(options =>
+    options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 builder.Services.AddOptions<MonitoringOptions>().Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<SimulationOptions>().BindConfiguration("Simulation").ValidateDataAnnotations().Validate(x => x.MaximumDelaySeconds >= x.MinimumDelaySeconds, "Maximum delay must be at least minimum delay.").ValidateOnStart();
 builder.Services.AddDbContextFactory<AccessControlDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("AccessControlDb")));
