@@ -5,6 +5,7 @@ namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
     DeviceLogWriter deviceLogs,
+    TurnstileLogState state,
     TurnstilePollingController controller,
     IOptionsMonitor<SimulationOptions> settings,
     IOptionsMonitor<MonitoringOptions> monitoringSettings,
@@ -74,10 +75,35 @@ public sealed class DemoDeviceLogGenerator(
 
                 // Use real active personnel and devices so database constraints are
                 // satisfied and the new row matches the poller's device filter.
-                var logId = await deviceLogs.InsertDemoAsync(random, token);
+                Guid? logId;
+                try
+                {
+                    logId = await deviceLogs.InsertDemoAsync(random, token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    // Demo mode must also work on a developer machine before a
+                    // database is configured. Production/live mode can never
+                    // reach this branch because ShouldGenerate rejects it.
+                    logger.LogWarning(exception, "Database demo insertion failed; publishing an in-memory demo event instead");
+                    logId = null;
+                }
                 if (logId is not null) logger.LogInformation(
                     "Inserted demo turnstile event {LogId} into DeviceLogs; it will be displayed by the polling worker",
                     logId);
+                else
+                {
+                    // A fresh demo installation often has no personnel/devices to
+                    // satisfy the production database relationships. Keep Demo
+                    // mode useful without inventing reference records in that DB.
+                    var entry = CreateEntry(random, time.GetLocalNow());
+                    state.Add(entry);
+                    logger.LogInformation("Published in-memory demo event {LogId} because database reference data is unavailable", entry.TimeLogId);
+                }
 
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)

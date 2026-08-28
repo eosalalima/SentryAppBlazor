@@ -68,12 +68,12 @@ public sealed class TurnstileServicesTests
         Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
     }
     [Fact]
-    public void Generator_writes_demo_events_to_device_logs_for_polling()
+    public void Generator_supports_database_and_standalone_demo_events()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
     }
     [Fact]
     public void Demo_writer_uses_a_random_source()
@@ -99,5 +99,22 @@ public sealed class TurnstileServicesTests
     public void Personnel_names_follow_display_rules(string? first,string? last,string expected)=>Assert.Equal(expected,TurnstileLogPollingWorker.FormatPersonnelName(first,last));
     [Fact] public void Polling_configuration_uses_defaults() { var configuration=new ConfigurationBuilder().Build(); var options=TurnstilePollingOptions.FromConfiguration(configuration); Assert.Equal(500,options.IntervalMs);Assert.Equal(3,options.LookbackSecondsOnStart);Assert.Equal(20,options.MaxRowsPerPoll); }
     [Fact] public void Polling_configuration_supports_legacy_keys() { var values=new Dictionary<string,string?>{{"TurnstilePolling:IntervalsMs","750"},{"TurnstilePolling:LookbackSecondsOntart","9"}}; var options=TurnstilePollingOptions.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(values).Build()); Assert.Equal(750,options.IntervalMs);Assert.Equal(9,options.LookbackSecondsOnStart); }
+    [Fact]
+    public void Polling_configuration_uses_runtime_monitoring_settings()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["TurnstilePolling:IntervalMs"] = "500",
+            ["TurnstilePolling:LookbackSecondsOnStart"] = "3",
+            ["TurnstilePolling:MaxRowsPerPoll"] = "20"
+        }).Build();
+        var monitoring = new MonitoringOptions { PollingInterval = 1250, LookbackSecondsOnStart = 15, MaxRowsPerPoll = 75 };
+
+        var options = TurnstilePollingOptions.FromConfiguration(configuration, monitoring);
+
+        Assert.Equal(1250, options.IntervalMs);
+        Assert.Equal(15, options.LookbackSecondsOnStart);
+        Assert.Equal(75, options.MaxRowsPerPoll);
+    }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }
