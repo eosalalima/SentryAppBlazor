@@ -15,7 +15,7 @@ public sealed class DemoDeviceLogGenerator(
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
 {
-    public static readonly string[] LogTypes = ["IN", "OUT"];
+    public static readonly string[] LogTypes = ["IN", "OUT", "BREAK OUT"];
     public static readonly string[] Events = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
     public static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
     public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
@@ -52,6 +52,13 @@ public sealed class DemoDeviceLogGenerator(
                     continue;
                 }
 
+                await Task.Delay(
+                    TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
+                    time,
+                    token);
+
+                // Resolve the directory values immediately before writing so a
+                // deleted person or device is not retained between demo cycles.
                 var accessNumbers = await LoadAccessNumbersAsync(token);
                 var serialNumbers = await LoadDeviceSerialNumbersAsync(token);
                 if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
@@ -68,10 +75,6 @@ public sealed class DemoDeviceLogGenerator(
                     token);
                 logger.LogInformation("Inserted demo DeviceLogs record {LogId}", id);
 
-                await Task.Delay(
-                    TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
-                    time,
-                    token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -97,6 +100,6 @@ public sealed class DemoDeviceLogGenerator(
     private async Task<List<string>> LoadDeviceSerialNumbersAsync(CancellationToken token)
     {
         await using var db = await accessControlFactory.CreateDbContextAsync(token);
-        return await db.ZkDevices.AsNoTracking().Select(x => x.SerialNumber).Where(x => x != "").ToListAsync(token);
+        return await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted && x.SerialNumber != "").Select(x => x.SerialNumber).ToListAsync(token);
     }
 }
