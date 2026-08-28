@@ -13,7 +13,7 @@
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
     <div class="notice"><strong>Demo mode writes test records to the configured database</strong><span>When explicitly enabled below, Demo mode inserts random records into <code>DeviceLogs</code>; the normal polling process then displays them.</span></div>
 
-    <EditForm Model="Model" OnValidSubmit="ApplyAsync" OnInvalidSubmit="HandleInvalidSubmit" FormName="monitoring-settings">
+    <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
@@ -42,7 +42,7 @@
             <label>SMS retry count<input type="number" min="0" max="5" @bind="Model.SmsRetryCount" /><ValidationMessage For="() => Model.SmsRetryCount" /></label></div>
         </section>
         <div class="settings-actions">
-            <button type="submit" class="control-button" disabled="@isSaving">@(isSaving ? "Applying…" : "Apply")</button>
+            <button type="button" class="control-button" disabled="@isSaving" @onclick="ApplyAsync">@(isSaving ? "Applying…" : "Apply")</button>
             <a class="control-button" href="/">Cancel</a>
             @if (!string.IsNullOrEmpty(statusMessage))
             {
@@ -55,6 +55,7 @@
 @code {
     private MonitoringOptions Model { get; set; } = new();
     private SimulationOptions SimulationModel { get; set; } = new();
+    private EditContext editContext = default!;
     private bool isSaving;
     private string? statusMessage;
 
@@ -62,11 +63,18 @@
     {
         Model = SettingsStore.Current;
         SimulationModel = SettingsStore.CurrentSimulation;
+        editContext = new EditContext(Model);
     }
 
     private async Task ApplyAsync()
     {
         if (isSaving) return;
+
+        if (!editContext.Validate())
+        {
+            HandleInvalidSubmit();
+            return;
+        }
 
         isSaving = true;
         statusMessage = null;
