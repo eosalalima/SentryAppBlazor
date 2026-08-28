@@ -2,7 +2,7 @@
 
 The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWorker` creates a fresh Access Control context per cycle, performs the ordered left-join query with a `(TimeLogStamp, Id)` watermark, enriches each result using independent STAFF and STUDENT contexts, attempts the replaceable SMS transport, and publishes the event even when lookup or delivery fails. The feed and recently-seen-ID cache are bounded and thread safe.
 
-`DemoDeviceLogGenerator` is a separate hosted service. It selects only active personnel and devices and writes marked records through the parameterized `DeviceLogWriter`; the polling worker—not the simulator—publishes them. The same writer backs `POST /admin/test-logs`. That endpoint returns 404 unless both non-live mode and `EnableManualTestLogs` are configured. Deployments should additionally place this administrative route behind their established authentication gateway/policy.
+`DemoDeviceLogGenerator` is a separate hosted service. It uses active personnel and devices when available, otherwise marked demo identifiers, and always inserts a record through the parameterized `DeviceLogWriter`; the polling worker—not the simulator—publishes it. Insert failures are logged and retried on a later cycle and are never replaced with an in-memory event. The same writer backs `POST /admin/test-logs`. That endpoint returns 404 unless both non-live mode and `EnableManualTestLogs` are configured. Deployments should additionally place this administrative route behind their established authentication gateway/policy.
 
 ## Configuration and safe demo enablement
 

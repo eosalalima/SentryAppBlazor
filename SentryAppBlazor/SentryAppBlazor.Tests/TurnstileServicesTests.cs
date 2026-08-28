@@ -68,12 +68,12 @@ public sealed class TurnstileServicesTests
         Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
     }
     [Fact]
-    public void Generator_supports_database_and_standalone_demo_events()
+    public void Generator_uses_only_the_database_demo_path()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
-        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
     }
     [Fact]
@@ -90,17 +90,6 @@ public sealed class TurnstileServicesTests
 
         Assert.NotNull(method);
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
-    }
-    [Fact]
-    public void Demo_entry_contains_displayable_person_and_device_data()
-    {
-        var entry = DemoDeviceLogGenerator.CreateEntry(new Random(1), DateTimeOffset.UnixEpoch);
-
-        Assert.Equal(DateTimeOffset.UnixEpoch, entry.TimeLogStamp);
-        Assert.False(string.IsNullOrWhiteSpace(entry.AccessNumber));
-        Assert.False(string.IsNullOrWhiteSpace(entry.PersonnelName));
-        Assert.StartsWith("DEMO-GATE-", entry.DeviceSerialNumber);
-        Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]
