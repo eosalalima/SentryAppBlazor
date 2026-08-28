@@ -21,3 +21,81 @@
     stroke-width: 1.8;
 }
 .log-group{margin-bottom:25px}.queue-heading{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px}.queue-heading h2{font:600 17px 'Playfair Display';margin:0}.queue-empty{border:1px dashed #cdd5cf;border-radius:8px;color:var(--muted);font-size:11px;padding:18px;text-align:center}.recent-panel{overflow:auto;max-height:calc(100vh - 204px)}
+/* Blazor Server circuit recovery. The framework controls the state classes on
+   #components-reconnect-modal; a rejected circuit is reloaded by reconnect.js. */
+.reconnect-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    place-items: center;
+    padding: 1.5rem;
+    background: rgb(3 24 17 / 62%);
+    backdrop-filter: blur(2px);
+}
+
+.reconnect-modal.components-reconnect-show,
+.reconnect-modal.components-reconnect-failed,
+.reconnect-modal.components-reconnect-rejected {
+    display: grid;
+}
+
+.reconnect-card {
+    width: min(25rem, 100%);
+    padding: 2rem;
+    border: 1px solid rgb(255 255 255 / 12%);
+    border-radius: 0.75rem;
+    background: #082b20;
+    box-shadow: 0 1.25rem 3rem rgb(0 0 0 / 32%);
+    color: #f5f1df;
+    text-align: center;
+}
+
+.reconnect-card > div {
+    display: none;
+    justify-items: center;
+    gap: 0.65rem;
+}
+
+.components-reconnect-show .components-reconnect-show,
+.components-reconnect-failed .components-reconnect-failed,
+.components-reconnect-rejected .components-reconnect-rejected {
+    display: grid;
+}
+
+.reconnect-card strong {
+    font-size: 1.15rem;
+}
+
+.reconnect-card span:not(.reconnect-spinner) {
+    color: #b9c9c1;
+}
+
+.reconnect-card button {
+    margin-top: 0.5rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid #8dd8b8;
+    border-radius: 0.35rem;
+    background: #126b4d;
+    color: white;
+    font: inherit;
+    cursor: pointer;
+}
+
+.reconnect-spinner {
+    width: 2rem;
+    height: 2rem;
+    margin-bottom: 0.45rem;
+    border: 3px solid rgb(141 216 184 / 28%);
+    border-top-color: #8dd8b8;
+    border-radius: 50%;
+    animation: reconnect-spin 0.8s linear infinite;
+}
+
+@keyframes reconnect-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reconnect-spinner { animation: none; }
+}
