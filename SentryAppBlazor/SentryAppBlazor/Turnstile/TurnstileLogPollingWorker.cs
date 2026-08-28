@@ -12,10 +12,8 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     { this.factory=factory; this.controller=controller; this.state=state; this.lookup=lookup; this.sms=sms; this.photos=photos; this.logger=logger; this.settings=settings; this.time=time; seen=new(pollingOptions.Value.RecentlySeenCapacity); lastTimestamp=time.GetUtcNow().AddSeconds(-settings.CurrentValue.LookbackSecondsOnStart); }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested) { try { await controller.WaitUntilActiveAsync(stoppingToken); if (!controller.IsActive) continue; var options=settings.CurrentValue; if (ShouldPollDatabase(options)) await PollOnceAsync(stoppingToken); await Task.Delay(options.PollingInterval, stoppingToken); } catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; } catch (Exception ex) { logger.LogError(ex, "Turnstile poll failed; it will be retried"); await Task.Delay(settings.CurrentValue.PollingInterval, stoppingToken); } }
+        while (!stoppingToken.IsCancellationRequested) { try { await controller.WaitUntilActiveAsync(stoppingToken); if (!controller.IsActive) continue; var options=settings.CurrentValue; await PollOnceAsync(stoppingToken); await Task.Delay(options.PollingInterval, stoppingToken); } catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; } catch (Exception ex) { logger.LogError(ex, "Turnstile poll failed; it will be retried"); await Task.Delay(settings.CurrentValue.PollingInterval, stoppingToken); } }
     }
-    public static bool ShouldPollDatabase(MonitoringOptions options) =>
-        !options.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase);
     internal async Task PollOnceAsync(CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);

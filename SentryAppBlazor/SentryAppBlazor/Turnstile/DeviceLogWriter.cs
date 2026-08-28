@@ -4,13 +4,9 @@ using SentryAppBlazor.Data;
 namespace SentryAppBlazor.Turnstile;
 public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, TimeProvider time)
 {
-    public Task<Guid> InsertDemoAsync(string accessNumber, string serial, Random random, CancellationToken token) =>
-        InsertAsync(accessNumber, serial,
-            DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "Test",
-            DemoDeviceLogGenerator.Events[random.Next(DemoDeviceLogGenerator.Events.Length)],
-            DemoDeviceLogGenerator.EventAddresses[random.Next(DemoDeviceLogGenerator.EventAddresses.Length)],
-            DemoDeviceLogGenerator.VerifyModes[random.Next(DemoDeviceLogGenerator.VerifyModes.Length)],
+    public Task<Guid> InsertDemoAsync(TurnstileLogEntry entry, CancellationToken token) =>
+        InsertAsync(entry.AccessNumber!, entry.DeviceSerialNumber!, entry.LogType!, "DEMO",
+            entry.Event!, entry.EventAddress!, entry.VerifyMode!,
             token);
 
     public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)
