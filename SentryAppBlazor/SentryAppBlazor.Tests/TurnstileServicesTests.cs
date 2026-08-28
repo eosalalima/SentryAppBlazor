@@ -1,10 +1,12 @@
 using SentryAppBlazor.Services;
 using SentryAppBlazor.Turnstile;
+using Microsoft.Extensions.Configuration;
 
 namespace SentryAppBlazor.Tests;
 public sealed class TurnstileServicesTests
 {
     [Fact] public void Polling_controller_starts_and_stops() { var c=new TurnstilePollingController(); Assert.False(c.IsActive); c.Start(); Assert.True(c.IsActive); c.Stop(); Assert.False(c.IsActive); }
+    [Fact] public void Polling_controller_is_idempotent_and_only_notifies_changes() { var c=new TurnstilePollingController(); var statuses=new List<bool>(); c.StatusChanged += statuses.Add; Assert.True(c.TryStart()); Assert.False(c.TryStart()); Assert.True(c.TryStop()); Assert.False(c.TryStop()); Assert.Equal([true,false], statuses); }
     [Fact] public async Task Polling_controller_wait_is_cancellable() { var c=new TurnstilePollingController(); using var cancel=new CancellationTokenSource(); cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>c.WaitUntilActiveAsync(cancel.Token)); }
     [Fact]
     public async Task Polling_controller_start_releases_all_waiting_workers()
@@ -67,12 +69,12 @@ public sealed class TurnstileServicesTests
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
     }
     [Fact]
-    public void Demo_writer_accepts_the_monitoring_device_filter()
+    public void Demo_writer_uses_a_random_source()
     {
         var method = typeof(DeviceLogWriter).GetMethod(nameof(DeviceLogWriter.InsertDemoAsync));
 
         Assert.NotNull(method);
-        Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(string));
+        Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
     public void Demo_entry_contains_displayable_person_and_device_data()
@@ -86,5 +88,9 @@ public sealed class TurnstileServicesTests
         Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
+    [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]
+    public void Personnel_names_follow_display_rules(string? first,string? last,string expected)=>Assert.Equal(expected,TurnstileLogPollingWorker.FormatPersonnelName(first,last));
+    [Fact] public void Polling_configuration_uses_defaults() { var configuration=new ConfigurationBuilder().Build(); var options=TurnstilePollingOptions.FromConfiguration(configuration); Assert.Equal(500,options.IntervalMs);Assert.Equal(3,options.LookbackSecondsOnStart);Assert.Equal(20,options.MaxRowsPerPoll); }
+    [Fact] public void Polling_configuration_supports_legacy_keys() { var values=new Dictionary<string,string?>{{"TurnstilePolling:IntervalsMs","750"},{"TurnstilePolling:LookbackSecondsOntart","9"}}; var options=TurnstilePollingOptions.FromConfiguration(new ConfigurationBuilder().AddInMemoryCollection(values).Build()); Assert.Equal(750,options.IntervalMs);Assert.Equal(9,options.LookbackSecondsOnStart); }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 }

@@ -11,7 +11,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile(MonitoringSettingsStore.ConfigFileName, optional: true, reloadOnChange: true);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddOptions<MonitoringOptions>().Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
-builder.Services.AddOptions<TurnstilePollingOptions>().BindConfiguration("TurnstilePolling").ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<SimulationOptions>().BindConfiguration("Simulation").ValidateDataAnnotations().Validate(x => x.MaximumDelaySeconds >= x.MinimumDelaySeconds, "Maximum delay must be at least minimum delay.").ValidateOnStart();
 builder.Services.AddDbContextFactory<AccessControlDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("AccessControlDb")));
 builder.Services.AddDbContextFactory<StaffDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("StaffDb")));

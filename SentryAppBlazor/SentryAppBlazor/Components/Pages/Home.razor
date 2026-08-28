@@ -12,8 +12,9 @@
     <SpotlightPanel Entry="@Feed.Spotlight"/>
 </div>
 @code {
-    protected override void OnInitialized() => Feed.Changed += Refresh;
-    private void Toggle() { if(Controller.IsActive) Controller.Stop(); else Controller.Start(); Refresh(); }
+    protected override void OnInitialized() { Feed.Changed += Refresh; Controller.StatusChanged += StatusChanged; }
+    private void Toggle() { if(Controller.IsActive) Controller.TryStop(); else Controller.TryStart(); }
+    private void StatusChanged(bool _) => Refresh();
     private void Refresh() => _ = InvokeAsync(StateHasChanged);
-    public void Dispose() => Feed.Changed -= Refresh;
+    public void Dispose() { Feed.Changed -= Refresh; Controller.StatusChanged -= StatusChanged; }
 }

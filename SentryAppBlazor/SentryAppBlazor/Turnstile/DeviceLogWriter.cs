@@ -2,39 +2,29 @@ using Microsoft.EntityFrameworkCore;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Turnstile;
-public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, TimeProvider time)
+public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, TimeProvider time, ILogger<DeviceLogWriter> logger)
 {
-    public async Task<Guid> InsertDemoAsync(Random random, string? monitoredDevice, CancellationToken token)
+    public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
         var accessNumbers = await db.Personnels.AsNoTracking()
             .Where(person => !person.IsDeleted)
             .Select(person => person.AccessNumber)
             .ToListAsync(token);
-        var deviceFilter = string.IsNullOrWhiteSpace(monitoredDevice) ||
-            monitoredDevice.Equals("all", StringComparison.OrdinalIgnoreCase)
-                ? null
-                : monitoredDevice.Trim();
         var serialNumbers = await db.ZkDevices.AsNoTracking()
-            .Where(device => !device.IsDeleted &&
-                (deviceFilter == null || device.SerialNumber == deviceFilter))
+            .Where(device => !device.IsDeleted)
             .Select(device => device.SerialNumber)
             .ToListAsync(token);
 
-        if (accessNumbers.Count == 0)
-            throw new InvalidOperationException("Demo logs require at least one active personnel record.");
-        if (serialNumbers.Count == 0)
-            throw new InvalidOperationException("Demo logs require an active device matching the monitoring filter.");
+        if (accessNumbers.Count == 0) { logger.LogWarning("Demo log skipped because no non-deleted personnel are available"); return null; }
+        if (serialNumbers.Count == 0) { logger.LogWarning("Demo log skipped because no non-deleted ZKTeco devices are available"); return null; }
 
         return await InsertAsync(
             db,
             accessNumbers[random.Next(accessNumbers.Count)],
             serialNumbers[random.Next(serialNumbers.Count)],
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "DEMO",
-            DemoDeviceLogGenerator.Events[random.Next(DemoDeviceLogGenerator.Events.Length)],
-            DemoDeviceLogGenerator.EventAddresses[random.Next(DemoDeviceLogGenerator.EventAddresses.Length)],
-            DemoDeviceLogGenerator.VerifyModes[random.Next(DemoDeviceLogGenerator.VerifyModes.Length)],
+            "TEST", "20", "1", "200",
             token);
     }
 
