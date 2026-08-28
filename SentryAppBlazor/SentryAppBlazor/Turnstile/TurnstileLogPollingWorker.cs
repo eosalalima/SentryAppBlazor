@@ -46,6 +46,14 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                 await controller.WaitUntilActiveAsync(stoppingToken);
                 if (!controller.IsActive) continue;
 
+                // Demo events are generated in memory so a clean checkout works
+                // without SQL Server. Avoid noisy connection retries in demo mode.
+                if (settings.Current.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), time, stoppingToken);
+                    continue;
+                }
+
                 var options = TurnstilePollingOptions.FromConfiguration(configuration, settings.Current);
                 if (timer is null || timerInterval != options.IntervalMs)
                 {
