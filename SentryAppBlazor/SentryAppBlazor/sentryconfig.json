@@ -1,4 +1,5 @@
 {
+  "IsLiveMode": false,
   "Monitoring": {
     "OperatingMode": "Demo",
     "EnableSimulatedLogs": true,

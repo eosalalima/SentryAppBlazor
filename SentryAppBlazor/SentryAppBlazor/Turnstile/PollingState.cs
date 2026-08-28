@@ -9,26 +9,38 @@ public sealed class TurnstilePollingController
     private TaskCompletionSource activeSignal = CreateSignal();
 
     public bool IsActive => active;
+    public event Action<bool>? StatusChanged;
 
-    public void Start()
+    public bool TryStart()
     {
+        Action<bool>? changed;
         lock (gate)
         {
-            if (active) return;
+            if (active) return false;
             active = true;
             activeSignal.TrySetResult();
+            changed = StatusChanged;
         }
+        changed?.Invoke(true);
+        return true;
     }
 
-    public void Stop()
+    public bool TryStop()
     {
+        Action<bool>? changed;
         lock (gate)
         {
-            if (!active) return;
+            if (!active) return false;
             active = false;
             activeSignal = CreateSignal();
+            changed = StatusChanged;
         }
+        changed?.Invoke(false);
+        return true;
     }
+
+    public void Start() => TryStart();
+    public void Stop() => TryStop();
 
     public Task WaitUntilActiveAsync(CancellationToken token)
     {

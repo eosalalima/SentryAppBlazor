@@ -1,7 +1,29 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace SentryAppBlazor.Turnstile;
-public sealed class TurnstilePollingOptions { [Range(50, 60000)] public int IntervalMs { get; set; } = 500; [Range(1, 500)] public int MaxRowsPerPoll { get; set; } = 20; [Range(0, 3600)] public int InitialLookbackSeconds { get; set; } = 3; [Range(10, 100000)] public int RecentlySeenCapacity { get; set; } = 2000; }
+public sealed class TurnstilePollingOptions
+{
+    public const int DefaultIntervalMs = 500, DefaultLookbackSeconds = 3, DefaultMaxRows = 20;
+    [Range(50, 60000)] public int IntervalMs { get; set; } = DefaultIntervalMs;
+    [Range(0, 3600)] public int LookbackSecondsOnStart { get; set; } = DefaultLookbackSeconds;
+    [Range(1, 500)] public int MaxRowsPerPoll { get; set; } = DefaultMaxRows;
+    public bool FlowDiagnosticsEnabled { get; set; }
+
+    public static TurnstilePollingOptions FromConfiguration(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("TurnstilePolling");
+        return new()
+        {
+            IntervalMs = Valid(section["IntervalMs"] ?? section["IntervalsMs"], 50, 60000, DefaultIntervalMs),
+            LookbackSecondsOnStart = Valid(section["LookbackSecondsOnStart"] ?? section["LookbackSecondsOntart"] ?? section["InitialLookbackSeconds"], 0, 3600, DefaultLookbackSeconds),
+            MaxRowsPerPoll = Valid(section["MaxRowsPerPoll"], 1, 500, DefaultMaxRows),
+            FlowDiagnosticsEnabled = bool.TryParse(section["FlowDiagnosticsEnabled"], out var diagnostics) && diagnostics
+        };
+    }
+
+    private static int Valid(string? value, int minimum, int maximum, int fallback) =>
+        int.TryParse(value, out var parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
+}
 public sealed class SimulationOptions
 {
     public bool IsLiveMode { get; set; } = true;

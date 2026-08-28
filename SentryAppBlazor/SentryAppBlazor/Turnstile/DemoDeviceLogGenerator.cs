@@ -8,6 +8,7 @@ public sealed class DemoDeviceLogGenerator(
     TurnstilePollingController controller,
     IOptionsMonitor<SimulationOptions> settings,
     IOptionsMonitor<MonitoringOptions> monitoringSettings,
+    IConfiguration configuration,
     TimeProvider time,
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
@@ -39,51 +40,21 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
-        var demoWasEnabled = false;
-
         while (!token.IsCancellationRequested)
         {
             try
             {
+                var simulation = CurrentSimulation(configuration, settings.CurrentValue);
+                await Task.Delay(TimeSpan.FromSeconds(random.Next(1, 11)), time, token);
                 var monitoring = monitoringSettings.CurrentValue;
-                var simulation = settings.CurrentValue;
-                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
-
-                // Options can change after this hosted service has started. In
-                // particular, applying Demo settings writes sentryconfig.json and
-                // IOptionsMonitor reloads it without restarting the application.
-                // Start monitoring on the transition into Demo mode, rather than
-                // checking the startup values only once.
-                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled))
-                {
-                    controller.Start();
-                }
-                demoWasEnabled = demoIsEnabled;
-
+                simulation = CurrentSimulation(configuration, settings.CurrentValue);
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(1), time, token);
                     continue;
-                }
-
-                await Task.Delay(
-                    TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
-                    time,
-                    token);
-
-                // The operator can stop monitoring or change settings during the
-                // random delay. Recheck all safety switches before writing.
-                monitoring = monitoringSettings.CurrentValue;
-                simulation = settings.CurrentValue;
-                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
-                {
-                    continue;
-                }
 
                 // Use real active personnel and devices so database constraints are
                 // satisfied and the new row matches the poller's device filter.
-                var logId = await deviceLogs.InsertDemoAsync(random, monitoring.DeviceId, token);
-                logger.LogInformation(
+                var logId = await deviceLogs.InsertDemoAsync(random, token);
+                if (logId is not null) logger.LogInformation(
                     "Inserted demo turnstile event {LogId} into DeviceLogs; it will be displayed by the polling worker",
                     logId);
 
@@ -98,6 +69,18 @@ public sealed class DemoDeviceLogGenerator(
                 await Task.Delay(TimeSpan.FromSeconds(1), time, token);
             }
         }
+    }
+
+    internal static SimulationOptions CurrentSimulation(IConfiguration configuration, SimulationOptions fallback)
+    {
+        var liveValue = configuration["IsLiveMode"];
+        return new SimulationOptions
+        {
+            IsLiveMode = bool.TryParse(liveValue, out var live) ? live : fallback.IsLiveMode,
+            EnableSimulatedLogs = fallback.EnableSimulatedLogs,
+            MinimumDelaySeconds = fallback.MinimumDelaySeconds,
+            MaximumDelaySeconds = fallback.MaximumDelaySeconds
+        };
     }
 
     internal static bool ShouldStartMonitoring(bool demoWasEnabled, bool demoIsEnabled) =>

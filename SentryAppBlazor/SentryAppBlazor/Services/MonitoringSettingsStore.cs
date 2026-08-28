@@ -28,6 +28,7 @@ public sealed class MonitoringSettingsStore(
         {
             var config = new MonitoringConfigFile
             {
+                IsLiveMode = simulation.IsLiveMode,
                 Monitoring = monitoring.Clone(),
                 Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
                 {
@@ -90,6 +91,7 @@ public sealed class MonitoringSettingsStore(
 
     private sealed class MonitoringConfigFile
     {
+        public bool IsLiveMode { get; set; } = true;
         public MonitoringOptions Monitoring { get; set; } = new();
         public SentryAppBlazor.Turnstile.SimulationOptions? Simulation { get; set; }
     }
