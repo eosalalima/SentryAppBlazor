@@ -2,41 +2,18 @@ using Microsoft.EntityFrameworkCore;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Turnstile;
-public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory, ILogger<DeviceLogWriter> logger)
+public sealed class DeviceLogWriter(IDbContextFactory<AccessControlDbContext> factory)
 {
     public async Task<Guid> InsertDemoAsync(Random random, CancellationToken token)
     {
-        await using var db = await factory.CreateDbContextAsync(token);
-        var accessNumbers = await db.Personnels.AsNoTracking()
-            .Where(person => !person.IsDeleted)
-            .Select(person => person.AccessNumber)
-            .ToListAsync(token);
-        var serialNumbers = await db.ZkDevices.AsNoTracking()
-            .Where(device => !device.IsDeleted)
-            .Select(device => device.SerialNumber)
-            .ToListAsync(token);
-
-        // Reference rows improve the display, but are not required by the polling
-        // query (it deliberately uses LEFT JOINs). Always insert a DeviceLogs row
-        // so demo events exercise exactly the same database path as real events.
-        var accessNumber = accessNumbers.Count == 0
-            ? $"DEMO-{random.Next(1, 10_000):0000}"
-            : accessNumbers[random.Next(accessNumbers.Count)];
-        var serialNumber = serialNumbers.Count == 0
-            ? "DEMO-GATE-1"
-            : serialNumbers[random.Next(serialNumbers.Count)];
-
-        if (accessNumbers.Count == 0)
-            logger.LogWarning("No active personnel were found; inserting the demo DeviceLogs row with access number {AccessNumber}", accessNumber);
-        if (serialNumbers.Count == 0)
-            logger.LogWarning("No active devices were found; inserting the demo DeviceLogs row with serial number {SerialNumber}", serialNumber);
-
+        // Do not query reference tables before this insert. Demo writers are
+        // intentionally allowed to use an INSERT-only database identity, and the
+        // poller's LEFT JOINs already support these clearly synthetic values.
         return await InsertAsync(
-            db,
-            accessNumber,
-            serialNumber,
+            $"DEMO-{random.Next(1, 10_000):0000}",
+            $"DEMO-GATE-{random.Next(1, 4)}",
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "TEST", "20", "1", "200",
+            "TEST",
             token);
     }
 
