@@ -14,6 +14,26 @@
 
 <body>
     <Routes @rendermode="InteractiveServer" />
+    <div id="components-reconnect-modal" class="reconnect-modal" role="status" aria-live="polite">
+        <div class="reconnect-card">
+            <div class="components-reconnect-show">
+                <span class="reconnect-spinner" aria-hidden="true"></span>
+                <strong>Connection interrupted</strong>
+                <span>Restoring the monitor…</span>
+            </div>
+            <div class="components-reconnect-failed">
+                <strong>Unable to reconnect</strong>
+                <span>Check the server or network connection, then try again.</span>
+                <button id="components-reconnect-button" type="button">Try again</button>
+            </div>
+            <div class="components-reconnect-rejected">
+                <span class="reconnect-spinner" aria-hidden="true"></span>
+                <strong>Monitor restarted</strong>
+                <span>Loading a fresh connection…</span>
+            </div>
+        </div>
+    </div>
+    <script src="reconnect.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 
