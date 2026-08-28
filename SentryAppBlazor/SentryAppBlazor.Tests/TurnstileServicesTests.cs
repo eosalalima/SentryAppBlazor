@@ -61,6 +61,13 @@ public sealed class TurnstileServicesTests
         bool wasEnabled, bool isEnabled, bool expected) =>
         Assert.Equal(expected, DemoDeviceLogGenerator.ShouldStartMonitoring(wasEnabled, isEnabled));
     [Fact]
+    public void Generator_uses_the_configured_demo_delay_range()
+    {
+        var options = new SimulationOptions { MinimumDelaySeconds = 17, MaximumDelaySeconds = 17 };
+
+        Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
+    }
+    [Fact]
     public void Generator_writes_demo_events_to_device_logs_for_polling()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
