@@ -9,14 +9,19 @@ public sealed class TurnstilePollingOptions
     [Range(1, 500)] public int MaxRowsPerPoll { get; set; } = DefaultMaxRows;
     public bool FlowDiagnosticsEnabled { get; set; }
 
-    public static TurnstilePollingOptions FromConfiguration(IConfiguration configuration)
+    public static TurnstilePollingOptions FromConfiguration(
+        IConfiguration configuration,
+        SentryAppBlazor.Services.MonitoringOptions? monitoring = null)
     {
         var section = configuration.GetSection("TurnstilePolling");
         return new()
         {
-            IntervalMs = Valid(section["IntervalMs"] ?? section["IntervalsMs"], 50, 60000, DefaultIntervalMs),
-            LookbackSecondsOnStart = Valid(section["LookbackSecondsOnStart"] ?? section["LookbackSecondsOntart"] ?? section["InitialLookbackSeconds"], 0, 3600, DefaultLookbackSeconds),
-            MaxRowsPerPoll = Valid(section["MaxRowsPerPoll"], 1, 500, DefaultMaxRows),
+            // Monitoring values are editable at runtime and are therefore the
+            // source of truth.  The TurnstilePolling section remains a backwards
+            // compatible fallback for installations without the settings file.
+            IntervalMs = monitoring?.PollingInterval ?? Valid(section["IntervalMs"] ?? section["IntervalsMs"], 50, 60000, DefaultIntervalMs),
+            LookbackSecondsOnStart = monitoring?.LookbackSecondsOnStart ?? Valid(section["LookbackSecondsOnStart"] ?? section["LookbackSecondsOntart"] ?? section["InitialLookbackSeconds"], 0, 3600, DefaultLookbackSeconds),
+            MaxRowsPerPoll = monitoring?.MaxRowsPerPoll ?? Valid(section["MaxRowsPerPoll"], 1, 500, DefaultMaxRows),
             FlowDiagnosticsEnabled = bool.TryParse(section["FlowDiagnosticsEnabled"], out var diagnostics) && diagnostics
         };
     }

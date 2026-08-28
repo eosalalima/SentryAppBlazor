@@ -33,7 +33,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         this.lookup = lookup; this.sms = sms; this.photos = photos;
         this.monitoring = monitoring; this.configuration = configuration;
         this.time = time; this.logger = logger;
-        ResetCursor(TurnstilePollingOptions.FromConfiguration(configuration).LookbackSecondsOnStart);
+        ResetCursor(TurnstilePollingOptions.FromConfiguration(configuration, monitoring.CurrentValue).LookbackSecondsOnStart);
         controller.StatusChanged += OnStatusChanged;
     }
 
@@ -47,7 +47,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                 await controller.WaitUntilActiveAsync(stoppingToken);
                 if (!controller.IsActive) continue;
 
-                var options = TurnstilePollingOptions.FromConfiguration(configuration);
+                var options = TurnstilePollingOptions.FromConfiguration(configuration, monitoring.CurrentValue);
                 if (resetRequested)
                 {
                     ResetCursor(options.LookbackSecondsOnStart);
@@ -84,8 +84,8 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         FormattableString query = $@"SELECT TOP ({maximumRows}) dl.Id AS TimeLogId, dl.TimeLogStamp, dl.LogType, dl.AccessNumber, dl.DeviceSerialNumber, dl.VerifyMode,
 p.LastName, p.FirstName, p.PhotoId, dl.Event, dl.EventAddress, zk.Name AS DeviceName
 FROM dbo.DeviceLogs dl
-INNER JOIN dbo.Personnels p ON p.AccessNumber = dl.AccessNumber AND p.IsDeleted = 0
-INNER JOIN dbo.ZKDevices zk ON zk.SerialNumber = dl.DeviceSerialNumber AND zk.IsDeleted = 0
+LEFT JOIN dbo.Personnels p ON p.AccessNumber = dl.AccessNumber AND p.IsDeleted = 0
+LEFT JOIN dbo.ZKDevices zk ON zk.SerialNumber = dl.DeviceSerialNumber AND zk.IsDeleted = 0
 WHERE dl.IsDeleted = 0
 AND (LOWER({deviceId}) = 'all' OR dl.DeviceSerialNumber = {deviceId})
 AND (dl.TimeLogStamp > {lastTimestamp} OR (dl.TimeLogStamp = {lastTimestamp} AND dl.Id > {lastId}))
