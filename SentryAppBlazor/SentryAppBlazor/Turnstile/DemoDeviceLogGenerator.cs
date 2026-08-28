@@ -39,22 +39,27 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
-        // Demo mode is expected to be immediately usable. Starting the shared
-        // controller here wakes both this generator and the database poller; it
-        // also avoids relying on a Blazor circuit/button click to start hosted
-        // services that belong to the application rather than to one browser.
-        if (IsDemoEnabled(settings.CurrentValue, monitoringSettings.CurrentValue))
-        {
-            controller.Start();
-        }
+        var demoWasEnabled = false;
 
         while (!token.IsCancellationRequested)
         {
             try
             {
-                await controller.WaitUntilActiveAsync(token);
                 var monitoring = monitoringSettings.CurrentValue;
                 var simulation = settings.CurrentValue;
+                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
+
+                // Options can change after this hosted service has started. In
+                // particular, applying Demo settings writes sentryconfig.json and
+                // IOptionsMonitor reloads it without restarting the application.
+                // Start monitoring on the transition into Demo mode, rather than
+                // checking the startup values only once.
+                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled))
+                {
+                    controller.Start();
+                }
+                demoWasEnabled = demoIsEnabled;
+
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), time, token);
@@ -65,6 +70,15 @@ public sealed class DemoDeviceLogGenerator(
                     TimeSpan.FromSeconds(random.Next(simulation.MinimumDelaySeconds, simulation.MaximumDelaySeconds + 1)),
                     time,
                     token);
+
+                // The operator can stop monitoring or change settings during the
+                // random delay. Recheck all safety switches before writing.
+                monitoring = monitoringSettings.CurrentValue;
+                simulation = settings.CurrentValue;
+                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
+                {
+                    continue;
+                }
 
                 // Use real active personnel and devices so database constraints are
                 // satisfied and the new row matches the poller's device filter.
@@ -85,6 +99,9 @@ public sealed class DemoDeviceLogGenerator(
             }
         }
     }
+
+    internal static bool ShouldStartMonitoring(bool demoWasEnabled, bool demoIsEnabled) =>
+        demoIsEnabled && !demoWasEnabled;
 
     internal static TurnstileLogEntry CreateEntry(Random random, DateTimeOffset timestamp)
     {
