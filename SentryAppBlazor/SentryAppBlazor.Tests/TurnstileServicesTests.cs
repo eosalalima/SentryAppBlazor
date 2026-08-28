@@ -68,25 +68,13 @@ public sealed class TurnstileServicesTests
         Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
     }
     [Fact]
-    public void Generator_uses_the_in_memory_demo_path()
+    public void Generator_writes_demo_records_to_device_logs()
     {
         var constructor = Assert.Single(typeof(DemoDeviceLogGenerator).GetConstructors());
 
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
-        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
-    }
-    [Fact]
-    public void Generator_creates_a_displayable_demo_entry()
-    {
-        var timestamp = new DateTimeOffset(2026, 8, 28, 12, 0, 0, TimeSpan.Zero);
-        var entry = DemoDeviceLogGenerator.CreateEntry(new Random(1), timestamp);
-
-        Assert.Equal(timestamp, entry.TimeLogStamp);
-        Assert.Contains(entry.LogType, DemoDeviceLogGenerator.LogTypes);
-        Assert.StartsWith("DEMO-", entry.AccessNumber);
-        Assert.StartsWith("DEMO-GATE-", entry.DeviceSerialNumber);
-        Assert.Equal("/img/avatar-placeholder.svg", entry.PhotoUrl);
     }
     [Fact]
     public void Poller_reads_persisted_runtime_settings()
