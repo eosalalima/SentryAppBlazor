@@ -25,6 +25,10 @@
             <label>Maximum rows per poll<input type="number" min="1" max="500" @bind="Model.MaxRowsPerPoll" /><ValidationMessage For="() => Model.MaxRowsPerPoll" /></label></div>
         </section>
         <section class="settings-card">
+            <h2>Database</h2><div class="form-grid">
+            <label class="wide">Database connection string<input @bind="DatabaseConnectionString" autocomplete="off" spellcheck="false" /><small>Connection used to read access-control events and write demo device logs. The updated value takes effect after the application restarts.</small></label></div>
+        </section>
+        <section class="settings-card">
             <h2>Demo safety</h2><div class="form-grid">
             <label>Live database mode<select @onchange="UpdateLiveDatabaseMode"><option value="enabled" selected="@SimulationModel.IsLiveMode">Enabled</option><option value="disabled" selected="@(!SimulationModel.IsLiveMode)">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label>
             <label>Minimum log delay (seconds)<input type="number" min="1" max="3600" @bind="SimulationModel.MinimumDelaySeconds" /><ValidationMessage For="() => SimulationModel.MinimumDelaySeconds" /></label>
@@ -55,6 +59,7 @@
 @code {
     private MonitoringOptions Model { get; set; } = new();
     private SimulationOptions SimulationModel { get; set; } = new();
+    private string DatabaseConnectionString { get; set; } = string.Empty;
     private EditContext editContext = default!;
     private bool isSaving;
     private string? statusMessage;
@@ -63,6 +68,7 @@
     {
         Model = SettingsStore.Current;
         SimulationModel = SettingsStore.CurrentSimulation;
+        DatabaseConnectionString = SettingsStore.CurrentDatabaseConnectionString;
         editContext = new EditContext(Model);
     }
 
@@ -80,7 +86,7 @@
         statusMessage = null;
         try
         {
-            await SettingsStore.SaveAsync(Model, SimulationModel);
+            await SettingsStore.SaveAsync(Model, SimulationModel, DatabaseConnectionString);
             Navigation.NavigateTo("/");
         }
         catch (Exception exception)
