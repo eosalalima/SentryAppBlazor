@@ -57,6 +57,7 @@ public sealed class TurnstileLogState
     private readonly object gate = new();
     private readonly LinkedList<TurnstileLogEntry> incoming = [];
     private readonly LinkedList<TurnstileLogEntry> outgoing = [];
+    private readonly Queue<TurnstileLogEntry> waitingForSpotlight = [];
     private readonly RecentlySeenIds ids = new(2000);
     private readonly MonitoringSettingsStore? settings;
     private readonly TimeProvider time;
@@ -72,9 +73,25 @@ public sealed class TurnstileLogState
 
     public bool Add(TurnstileLogEntry entry)
     {
-        lock(gate) { if(!ids.Add(entry.TimeLogId)) return false; spotlight=entry; }
+        var startSpotlightProcessor = false;
+        lock(gate)
+        {
+            if(!ids.Add(entry.TimeLogId)) return false;
+
+            // Polling can return several rows at once. Queue them rather than
+            // replacing the current spotlight so every database record receives
+            // its full configured display time before entering history.
+            if (spotlight is null)
+            {
+                spotlight = entry;
+                startSpotlightProcessor = true;
+            }
+            else
+                waitingForSpotlight.Enqueue(entry);
+        }
         NotifyChanged();
-        _ = PromoteAndExpireAsync(entry);
+        if (startSpotlightProcessor)
+            _ = ProcessSpotlightQueueAsync();
         return true;
     }
 
@@ -90,17 +107,33 @@ public sealed class TurnstileLogState
         if(changed) NotifyChanged();
     }
 
-    private async Task PromoteAndExpireAsync(TurnstileLogEntry entry)
+    private async Task ProcessSpotlightQueueAsync()
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.HighlightDisplayDuration ?? 3000), time);
-        lock(gate)
+        while (true)
         {
-            if(spotlight?.TimeLogId==entry.TimeLogId) spotlight=null;
-            var queue=IsIn(entry.LogType)?incoming:outgoing;
-            queue.AddFirst(entry);
-            while(queue.Count>10) queue.RemoveLast();
+            TurnstileLogEntry current;
+            lock (gate)
+            {
+                if (spotlight is null) return;
+                current = spotlight;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.HighlightDisplayDuration ?? 3000), time);
+
+            lock(gate)
+            {
+                var history=IsIn(current.LogType)?incoming:outgoing;
+                history.AddFirst(current);
+                while(history.Count>10) history.RemoveLast();
+                spotlight = waitingForSpotlight.TryDequeue(out var next) ? next : null;
+            }
+            NotifyChanged();
+            _ = ExpireFromHistoryAsync(current);
         }
-        NotifyChanged();
+    }
+
+    private async Task ExpireFromHistoryAsync(TurnstileLogEntry entry)
+    {
         await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.FeedRetentionDuration ?? 10000), time);
         lock(gate)
         {
