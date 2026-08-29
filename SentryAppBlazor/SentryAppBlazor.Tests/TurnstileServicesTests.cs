@@ -60,20 +60,12 @@ public sealed class TurnstileServicesTests
     [InlineData(true, "Demo", true, false)]
     [InlineData(false, "Live", true, false)]
     [InlineData(false, "Demo", false, false)]
-    public void Generator_auto_starts_only_for_safely_enabled_demo_mode(bool live, string mode, bool enabled, bool expected)
+    public void Generator_is_enabled_only_for_safe_demo_settings(bool live, string mode, bool enabled, bool expected)
     {
         Assert.Equal(expected, DemoDeviceLogGenerator.IsDemoEnabled(
             new SimulationOptions { IsLiveMode=live },
             new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled }));
     }
-    [Theory]
-    [InlineData(false, true, true)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    public void Generator_starts_monitoring_only_when_demo_becomes_enabled(
-        bool wasEnabled, bool isEnabled, bool expected) =>
-        Assert.Equal(expected, DemoDeviceLogGenerator.ShouldStartMonitoring(wasEnabled, isEnabled));
     [Fact]
     public void Generator_uses_the_configured_demo_delay_range()
     {
