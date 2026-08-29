@@ -2,6 +2,8 @@ using SentryAppBlazor.Services;
 using SentryAppBlazor.Turnstile;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Tests;
 public sealed class TurnstileServicesTests
@@ -144,6 +146,16 @@ public sealed class TurnstileServicesTests
         Assert.Equal(2, constructor.GetParameters().Length);
         Assert.Equal("factory", constructor.GetParameters()[0].Name);
         Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
+    }
+    [Fact]
+    public void Access_control_factory_reads_the_monitoring_settings_store()
+    {
+        var constructor = Assert.Single(typeof(MonitoringAccessControlDbContextFactory).GetConstructors());
+
+        Assert.Equal(typeof(MonitoringSettingsStore), Assert.Single(constructor.GetParameters()).ParameterType);
+        Assert.Contains(
+            typeof(IDbContextFactory<AccessControlDbContext>),
+            typeof(MonitoringAccessControlDbContextFactory).GetInterfaces());
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]

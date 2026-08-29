@@ -16,7 +16,9 @@ builder.Services.Configure<HostOptions>(options =>
     options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 builder.Services.AddOptions<MonitoringOptions>().Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
 builder.Services.AddOptions<SimulationOptions>().BindConfiguration("Simulation").ValidateDataAnnotations().Validate(x => x.MaximumDelaySeconds >= x.MinimumDelaySeconds, "Maximum delay must be at least minimum delay.").ValidateOnStart();
-builder.Services.AddDbContextFactory<AccessControlDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("AccessControlDb")));
+// Resolve this connection for every context so Apply in Monitoring Settings is
+// immediately honored by both the DeviceLogs poller and demo-data generator.
+builder.Services.AddSingleton<IDbContextFactory<AccessControlDbContext>, MonitoringAccessControlDbContextFactory>();
 builder.Services.AddDbContextFactory<StaffDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("StaffDb")));
 builder.Services.AddDbContextFactory<StudentDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("StudentDb")));
 builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton(Random.Shared);
