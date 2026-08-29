@@ -25,21 +25,29 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
+        var demoWasEnabled = false;
+
         while (!token.IsCancellationRequested)
         {
             try
             {
-                // Waiting on the controller makes clicking Start the trigger for
-                // demo generation.  In particular, do not delay before the first
-                // insert: operators should be able to verify the new DeviceLogs
-                // row immediately after starting the monitor.
-                await controller.WaitUntilActiveAsync(token);
-
                 // Read the persisted file directly. Relying on IOptionsMonitor
                 // made Apply dependent on the platform file watcher noticing an
                 // atomic file replacement.
                 var simulation = settings.CurrentSimulation;
                 var monitoring = settings.Current;
+
+                // Demo mode is itself the operator's request to produce database
+                // traffic. Do not require a browser circuit to click Start after
+                // every application/IIS restart: start both hosted workers when
+                // the persisted safety settings explicitly enable demo data.
+                // This is deliberately evaluated while inactive instead of
+                // waiting on the controller; otherwise the generator can sleep
+                // forever and never observe newly applied demo settings.
+                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
+                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled, controller.IsActive))
+                    controller.TryStart();
+                demoWasEnabled = demoIsEnabled;
 
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                 {
@@ -77,5 +85,11 @@ public sealed class DemoDeviceLogGenerator(
         var maximum = Math.Max(minimum, simulation.MaximumDelaySeconds);
         return TimeSpan.FromSeconds(random.Next(minimum, maximum + 1));
     }
+
+    internal static bool ShouldStartMonitoring(
+        bool demoWasEnabled,
+        bool demoIsEnabled,
+        bool monitoringActive) =>
+        !demoWasEnabled && demoIsEnabled && !monitoringActive;
 
 }
