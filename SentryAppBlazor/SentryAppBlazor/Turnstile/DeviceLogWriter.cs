@@ -10,25 +10,23 @@ public sealed class DeviceLogWriter(
     {
         await using var db = await factory.CreateDbContextAsync(token);
 
-        // DeviceLogs installations commonly enforce foreign keys to Personnels
-        // and ZKDevices. Synthetic DEMO-* identifiers therefore make the INSERT
-        // fail even though the polling query uses LEFT JOINs. Select real active
-        // keys so the generated row is valid for the deployed schema.
-        var accessNumbers = await db.Personnels.AsNoTracking()
-            .Where(person => !person.IsDeleted && person.AccessNumber != "")
-            .Select(person => person.AccessNumber)
-            .ToListAsync(token);
-        var serialNumbers = await db.ZkDevices.AsNoTracking()
-            .Where(device => !device.IsDeleted && device.SerialNumber != "")
-            .Select(device => device.SerialNumber)
-            .ToListAsync(token);
+        // Resolve references with narrow SQL queries rather than materializing
+        // mapped entities. Access-control databases vary between deployments and
+        // may not contain every column represented by our read models.
+        var accessNumber = await SelectDemoReferenceAsync(
+            db, "SELECT TOP (1) AccessNumber AS Value FROM dbo.Personnels WHERE IsDeleted = 0 AND AccessNumber <> '' ORDER BY NEWID()", token);
+        var serialNumber = await SelectDemoReferenceAsync(
+            db, "SELECT TOP (1) SerialNumber AS Value FROM dbo.ZKDevices WHERE IsDeleted = 0 AND SerialNumber <> '' ORDER BY NEWID()", token);
 
-        if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
-            throw new InvalidOperationException(
-                "Demo DeviceLogs require at least one active Personnel and ZKDevice record.");
+        // DeviceLogs uses nullable reference values in the application schema and
+        // the monitor uses LEFT JOINs. An empty directory must not disable demo
+        // traffic completely: insert the real log with null references and let it
+        // appear as UNKNOWN until personnel/devices have been configured.
+        if (accessNumber is null || serialNumber is null)
+            logger.LogWarning(
+                "Demo DeviceLogs record will use null directory references because no active {MissingReferences} records exist",
+                accessNumber is null && serialNumber is null ? "Personnel or ZKDevice" : accessNumber is null ? "Personnel" : "ZKDevice");
 
-        var accessNumber = accessNumbers[random.Next(accessNumbers.Count)];
-        var serialNumber = serialNumbers[random.Next(serialNumbers.Count)];
         logger.LogDebug(
             "Creating demo DeviceLogs record for personnel {AccessNumber} at device {SerialNumber}",
             accessNumber,
@@ -46,6 +44,10 @@ public sealed class DeviceLogWriter(
             token);
     }
 
+    private static async Task<string?> SelectDemoReferenceAsync(
+        AccessControlDbContext db, string sql, CancellationToken token) =>
+        await db.Database.SqlQueryRaw<string>(sql).FirstOrDefaultAsync(token);
+
     public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)
         => await InsertAsync(accessNumber, serial, logType, marker, "20", "1", "200", token);
 
@@ -56,9 +58,9 @@ public sealed class DeviceLogWriter(
         return await InsertAsync(db, accessNumber, serial, logType, cardNo, eventCode, eventAddress, verifyMode, token);
     }
 
-    private async Task<Guid> InsertAsync(AccessControlDbContext db, string accessNumber, string serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
+    private async Task<Guid> InsertAsync(AccessControlDbContext db, string? accessNumber, string? serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(accessNumber)||string.IsNullOrWhiteSpace(serial)||!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("Valid personnel, device, and log type are required.");
+        if (!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("A valid log type is required.", nameof(logType));
         var id=Guid.NewGuid();
         // Use the database clock for the row's watermark columns.  The polling
         // cursor is also based on the database clock, so a clock/time-zone skew
