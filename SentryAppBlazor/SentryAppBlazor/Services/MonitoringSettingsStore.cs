@@ -6,6 +6,7 @@ namespace SentryAppBlazor.Services;
 
 public sealed class MonitoringSettingsStore(
     IWebHostEnvironment environment,
+    IConfiguration configuration,
     IOptionsMonitor<MonitoringOptions> options,
     IOptionsMonitor<SentryAppBlazor.Turnstile.SimulationOptions> simulationOptions,
     ILogger<MonitoringSettingsStore> logger)
@@ -16,6 +17,10 @@ public sealed class MonitoringSettingsStore(
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public MonitoringOptions Current => LoadCurrent();
+    public string CurrentDatabaseConnectionString =>
+        LoadConfig()?.ConnectionStrings?.AccessControlDb
+        ?? configuration.GetConnectionString("AccessControlDb")
+        ?? string.Empty;
     public SimulationOptions CurrentSimulation
     {
         get
@@ -50,7 +55,11 @@ public sealed class MonitoringSettingsStore(
         return resolved;
     }
 
-    public async Task SaveAsync(MonitoringOptions monitoring, SimulationOptions simulation, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(
+        MonitoringOptions monitoring,
+        SimulationOptions simulation,
+        string databaseConnectionString,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(monitoring);
         ArgumentNullException.ThrowIfNull(simulation);
@@ -61,6 +70,12 @@ public sealed class MonitoringSettingsStore(
             var config = new MonitoringConfigFile
             {
                 IsLiveMode = simulation.IsLiveMode,
+                ConnectionStrings = new ConnectionStringSettings
+                {
+                    AccessControlDb = databaseConnectionString,
+                    StaffDb = configuration.GetConnectionString("StaffDb") ?? string.Empty,
+                    StudentDb = configuration.GetConnectionString("StudentDb") ?? string.Empty
+                },
                 Monitoring = monitoring.Clone(),
                 Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
                 {
@@ -124,7 +139,15 @@ public sealed class MonitoringSettingsStore(
     private sealed class MonitoringConfigFile
     {
         public bool IsLiveMode { get; set; } = true;
+        public ConnectionStringSettings? ConnectionStrings { get; set; }
         public MonitoringOptions Monitoring { get; set; } = new();
         public SentryAppBlazor.Turnstile.SimulationOptions? Simulation { get; set; }
+    }
+
+    private sealed class ConnectionStringSettings
+    {
+        public string AccessControlDb { get; set; } = string.Empty;
+        public string StaffDb { get; set; } = string.Empty;
+        public string StudentDb { get; set; } = string.Empty;
     }
 }

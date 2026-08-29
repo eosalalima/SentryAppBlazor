@@ -1,5 +1,10 @@
 {
   "IsLiveMode": false,
+  "ConnectionStrings": {
+    "AccessControlDb": "",
+    "StaffDb": "",
+    "StudentDb": ""
+  },
   "Monitoring": {
     "OperatingMode": "Demo",
     "EnableSimulatedLogs": true,
