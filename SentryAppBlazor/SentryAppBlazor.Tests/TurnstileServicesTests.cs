@@ -108,6 +108,19 @@ public sealed class TurnstileServicesTests
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
     }
+    [Theory]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, false, false, false)]
+    public void Generator_starts_monitoring_from_safe_persisted_demo_configuration(
+        bool wasEnabled, bool isEnabled, bool active, bool expected)
+    {
+        Assert.Equal(expected, DemoDeviceLogGenerator.ShouldStartMonitoring(
+            wasEnabled,
+            isEnabled,
+            active));
+    }
     [Fact]
     public void Poller_reads_persisted_runtime_settings()
     {
