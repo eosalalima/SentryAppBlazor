@@ -25,41 +25,27 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
-        var demoWasEnabled = false;
-
         while (!token.IsCancellationRequested)
         {
             try
             {
-                // Read the persisted file directly. Relying on IOptionsMonitor here
-                // made Apply dependent on the platform file-watcher noticing an
-                // atomic file replacement, so the hosted service could keep using
-                // its startup settings indefinitely.
+                // Waiting on the controller makes clicking Start the trigger for
+                // demo generation.  In particular, do not delay before the first
+                // insert: operators should be able to verify the new DeviceLogs
+                // row immediately after starting the monitor.
+                await controller.WaitUntilActiveAsync(token);
+
+                // Read the persisted file directly. Relying on IOptionsMonitor
+                // made Apply dependent on the platform file watcher noticing an
+                // atomic file replacement.
                 var simulation = settings.CurrentSimulation;
                 var monitoring = settings.Current;
-                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
-
-                // Hosted services must not depend on a browser clicking Start. Wake
-                // both the generator and poller when the application starts in demo
-                // mode, and when sentryconfig.json is later changed into demo mode.
-                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled))
-                    controller.TryStart();
-                demoWasEnabled = demoIsEnabled;
 
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), time, token);
                     continue;
                 }
-
-                await Task.Delay(GetDelay(simulation, random), time, token);
-
-                // The operator may stop monitoring or enable live mode while the
-                // delay is in progress, so recheck every write-safety condition.
-                monitoring = settings.Current;
-                simulation = settings.CurrentSimulation;
-                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
-                    continue;
 
                 // Persist demo traffic to DeviceLogs. The polling worker then
                 // discovers and publishes it through the same path as a real
@@ -69,6 +55,9 @@ public sealed class DemoDeviceLogGenerator(
                     "Inserted demo turnstile event {LogId} into DeviceLogs",
                     logId);
 
+                // Only subsequent records use the configured random interval.
+                // The safety conditions are evaluated again on the next loop.
+                await Task.Delay(GetDelay(simulation, random), time, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -81,9 +70,6 @@ public sealed class DemoDeviceLogGenerator(
             }
         }
     }
-
-    internal static bool ShouldStartMonitoring(bool demoWasEnabled, bool demoIsEnabled) =>
-        demoIsEnabled && !demoWasEnabled;
 
     internal static TimeSpan GetDelay(SimulationOptions simulation, Random random)
     {
