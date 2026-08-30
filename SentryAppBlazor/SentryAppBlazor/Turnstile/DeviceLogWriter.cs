@@ -6,7 +6,7 @@ public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
     ILogger<DeviceLogWriter> logger)
 {
-    public async Task<Guid> InsertDemoAsync(Random random, CancellationToken token)
+    public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
 
@@ -18,14 +18,13 @@ public sealed class DeviceLogWriter(
         var serialNumber = await SelectDemoReferenceAsync(
             db, "SELECT TOP (1) SerialNumber AS Value FROM dbo.ZKDevices WHERE IsDeleted = 0 AND SerialNumber <> '' ORDER BY NEWID()", token);
 
-        // DeviceLogs uses nullable reference values in the application schema and
-        // the monitor uses LEFT JOINs. An empty directory must not disable demo
-        // traffic completely: insert the real log with null references and let it
-        // appear as UNKNOWN until personnel/devices have been configured.
         if (accessNumber is null || serialNumber is null)
+        {
             logger.LogWarning(
-                "Demo DeviceLogs record will use null directory references because no active {MissingReferences} records exist",
+                "Skipping demo DeviceLogs insert because no active {MissingReferences} records exist",
                 accessNumber is null && serialNumber is null ? "Personnel or ZKDevice" : accessNumber is null ? "Personnel" : "ZKDevice");
+            return null;
+        }
 
         logger.LogDebug(
             "Creating demo DeviceLogs record for personnel {AccessNumber} at device {SerialNumber}",
@@ -37,10 +36,10 @@ public sealed class DeviceLogWriter(
             accessNumber,
             serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            random.NextInt64(1, 10_000_000_000).ToString(),
-            DemoDeviceLogGenerator.Events[random.Next(DemoDeviceLogGenerator.Events.Length)],
-            DemoDeviceLogGenerator.EventAddresses[random.Next(DemoDeviceLogGenerator.EventAddresses.Length)],
-            DemoDeviceLogGenerator.VerifyModes[random.Next(DemoDeviceLogGenerator.VerifyModes.Length)],
+            "TEST",
+            "20",
+            "1",
+            "200",
             token);
     }
 
