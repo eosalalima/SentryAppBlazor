@@ -136,14 +136,13 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_uses_access_control_and_personnels_databases()
+    public void Demo_writer_uses_the_live_access_control_database()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(3, constructor.GetParameters().Length);
+        Assert.Equal(2, constructor.GetParameters().Length);
         Assert.Equal("factory", constructor.GetParameters()[0].Name);
-        Assert.Equal(typeof(IDbContextFactory<PersonnelsDbContext>), constructor.GetParameters()[1].ParameterType);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[2].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
     }
     [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
