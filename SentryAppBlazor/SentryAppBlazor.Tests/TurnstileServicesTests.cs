@@ -136,13 +136,14 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_has_only_database_and_logging_dependencies()
+    public void Demo_writer_uses_access_control_and_personnels_databases()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(2, constructor.GetParameters().Length);
+        Assert.Equal(3, constructor.GetParameters().Length);
         Assert.Equal("factory", constructor.GetParameters()[0].Name);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(IDbContextFactory<PersonnelsDbContext>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[2].ParameterType);
     }
     [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
@@ -153,6 +154,23 @@ public sealed class TurnstileServicesTests
         Assert.Contains(
             typeof(IDbContextFactory<AccessControlDbContext>),
             typeof(MonitoringAccessControlDbContextFactory).GetInterfaces());
+    }
+    [Theory]
+    [InlineData(typeof(MonitoringPersonnelsDbContextFactory), typeof(IDbContextFactory<PersonnelsDbContext>))]
+    [InlineData(typeof(MonitoringStaffDbContextFactory), typeof(IDbContextFactory<StaffDbContext>))]
+    [InlineData(typeof(MonitoringStudentDbContextFactory), typeof(IDbContextFactory<StudentDbContext>))]
+    public void Directory_factories_read_runtime_monitoring_settings(Type factoryType, Type interfaceType)
+    {
+        Assert.Equal(typeof(MonitoringSettingsStore), Assert.Single(factoryType.GetConstructors()).GetParameters().Single().ParameterType);
+        Assert.Contains(interfaceType, factoryType.GetInterfaces());
+    }
+    [Fact]
+    public void Poller_uses_the_separate_personnels_database()
+    {
+        var constructor = Assert.Single(typeof(TurnstileLogPollingWorker).GetConstructors());
+
+        Assert.Contains(constructor.GetParameters(), parameter =>
+            parameter.ParameterType == typeof(IDbContextFactory<PersonnelsDbContext>));
     }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]

@@ -11,7 +11,7 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode uses DeviceLogs</strong><span>When explicitly enabled below, Demo mode inserts sample events for active personnel and devices into the configured Access Control database.</span></div>
+    <div class="notice"><strong>Demo mode uses all configured data sources</strong><span>Demo selects an active person from Personnels, a device from Access Control, and inserts the sample event into Access Control DeviceLogs. STAFF and STUDENT are used for directory/mobile lookups.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
@@ -29,7 +29,7 @@
             <label class="wide">Access Control connection string<input @bind="ConnectionStrings.AccessControlDb" autocomplete="off" spellcheck="false" /><small>Connection used to read access-control events and write demo device logs.</small></label>
             <label class="wide">STAFF connection string<input @bind="ConnectionStrings.StaffDb" autocomplete="off" spellcheck="false" /><small>Connection used for staff directory lookups.</small></label>
             <label class="wide">STUDENT connection string<input @bind="ConnectionStrings.StudentDb" autocomplete="off" spellcheck="false" /><small>Connection used for student directory lookups.</small></label>
-            <label class="wide">Personnels connection string<input @bind="ConnectionStrings.PersonnelsDb" autocomplete="off" spellcheck="false" /><small>Connection for the Personnels database.</small></label></div>
+            <label class="wide">Personnels connection string<input @bind="ConnectionStrings.PersonnelsDb" autocomplete="off" spellcheck="false" /><small>Connection used for personnel identity, names, photos, and demo access numbers.</small></label></div>
         </section>
         <section class="settings-card">
             <h2>Demo safety</h2><div class="form-grid">

@@ -7,6 +7,7 @@ namespace SentryAppBlazor.Turnstile;
 public sealed class TurnstileLogPollingWorker : BackgroundService
 {
     private readonly IDbContextFactory<AccessControlDbContext> factory;
+    private readonly IDbContextFactory<PersonnelsDbContext> personnelsFactory;
     private readonly TurnstilePollingController controller;
     private readonly TurnstileLogState state;
     private readonly PersonnelLookupService lookup;
@@ -23,12 +24,12 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     private PeriodicTimer? timer;
 
     public TurnstileLogPollingWorker(
-        IDbContextFactory<AccessControlDbContext> factory, TurnstilePollingController controller,
+        IDbContextFactory<AccessControlDbContext> factory, IDbContextFactory<PersonnelsDbContext> personnelsFactory, TurnstilePollingController controller,
         TurnstileLogState state, PersonnelLookupService lookup, ISmsSender sms,
         IPhotoUrlBuilder photos, MonitoringSettingsStore settings,
         IConfiguration configuration, TimeProvider time, ILogger<TurnstileLogPollingWorker> logger)
     {
-        this.factory = factory; this.controller = controller; this.state = state;
+        this.factory = factory; this.personnelsFactory = personnelsFactory; this.controller = controller; this.state = state;
         this.lookup = lookup; this.sms = sms; this.photos = photos;
         this.settings = settings; this.configuration = configuration;
         this.time = time; this.logger = logger;
@@ -95,15 +96,32 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         var deviceId = string.IsNullOrWhiteSpace(monitoring.DeviceId) ? "all" : monitoring.DeviceId.Trim();
         var maximumRows = Math.Clamp(options.MaxRowsPerPoll, 1, 500);
         FormattableString query = $@"SELECT TOP ({maximumRows}) dl.Id AS TimeLogId, dl.TimeLogStamp, dl.LogType, dl.AccessNumber, dl.DeviceSerialNumber, dl.VerifyMode,
-p.LastName, p.FirstName, p.PhotoId, dl.Event, dl.EventAddress, zk.Name AS DeviceName
+CAST(NULL AS nvarchar(256)) AS LastName, CAST(NULL AS nvarchar(256)) AS FirstName, CAST(NULL AS nvarchar(256)) AS PhotoId,
+dl.Event, dl.EventAddress, zk.Name AS DeviceName
 FROM dbo.DeviceLogs dl
-LEFT JOIN dbo.Personnels p ON p.AccessNumber = dl.AccessNumber AND p.IsDeleted = 0
 LEFT JOIN dbo.ZKDevices zk ON zk.SerialNumber = dl.DeviceSerialNumber AND zk.IsDeleted = 0
 WHERE dl.IsDeleted = 0
 AND (LOWER({deviceId}) = 'all' OR dl.DeviceSerialNumber = {deviceId})
 AND (dl.TimeLogStamp > {lastTimestamp} OR (dl.TimeLogStamp = {lastTimestamp} AND dl.Id > {lastId}))
 ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
         var rows = await db.TurnstileLogRows.FromSqlInterpolated(query).AsNoTracking().ToListAsync(token);
+
+        var accessNumbers = rows.Select(x => x.AccessNumber).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().ToArray();
+        if (accessNumbers.Length > 0)
+        {
+            await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
+            var profiles = await personnels.Personnels.AsNoTracking()
+                .Where(x => accessNumbers.Contains(x.AccessNumber) && !x.IsDeleted)
+                .Select(x => new { x.AccessNumber, x.LastName, x.FirstName, x.PhotoId })
+                .ToDictionaryAsync(x => x.AccessNumber, token);
+            foreach (var row in rows)
+                if (row.AccessNumber is not null && profiles.TryGetValue(row.AccessNumber, out var profile))
+                {
+                    row.LastName = profile.LastName;
+                    row.FirstName = profile.FirstName;
+                    row.PhotoId = profile.PhotoId;
+                }
+        }
 
         foreach (var row in rows)
         {

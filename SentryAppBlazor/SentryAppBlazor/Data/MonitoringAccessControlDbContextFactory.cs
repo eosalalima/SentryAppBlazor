@@ -25,3 +25,32 @@ public sealed class MonitoringAccessControlDbContextFactory(MonitoringSettingsSt
         return new AccessControlDbContext(options);
     }
 }
+
+public sealed class MonitoringPersonnelsDbContextFactory(MonitoringSettingsStore settings)
+    : IDbContextFactory<PersonnelsDbContext>
+{
+    public PersonnelsDbContext CreateDbContext() => new(
+        BuildOptions<PersonnelsDbContext>(settings.CurrentConnectionStrings.PersonnelsDb, "Personnels"));
+
+    internal static DbContextOptions<TContext> BuildOptions<TContext>(string connectionString, string databaseName)
+        where TContext : DbContext
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException($"Set the {databaseName} connection string in Monitoring Settings before starting monitoring or generating demo data.");
+        return new DbContextOptionsBuilder<TContext>().UseSqlServer(connectionString).Options;
+    }
+}
+
+public sealed class MonitoringStaffDbContextFactory(MonitoringSettingsStore settings)
+    : IDbContextFactory<StaffDbContext>
+{
+    public StaffDbContext CreateDbContext() => new(
+        MonitoringPersonnelsDbContextFactory.BuildOptions<StaffDbContext>(settings.CurrentConnectionStrings.StaffDb, "STAFF"));
+}
+
+public sealed class MonitoringStudentDbContextFactory(MonitoringSettingsStore settings)
+    : IDbContextFactory<StudentDbContext>
+{
+    public StudentDbContext CreateDbContext() => new(
+        MonitoringPersonnelsDbContextFactory.BuildOptions<StudentDbContext>(settings.CurrentConnectionStrings.StudentDb, "STUDENT"));
+}
