@@ -17,10 +17,21 @@ public sealed class MonitoringSettingsStore(
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public MonitoringOptions Current => LoadCurrent();
-    public string CurrentDatabaseConnectionString =>
-        LoadConfig()?.ConnectionStrings?.AccessControlDb
-        ?? configuration.GetConnectionString("AccessControlDb")
-        ?? string.Empty;
+    public ConnectionStringSettings CurrentConnectionStrings
+    {
+        get
+        {
+            var persisted = LoadConfig()?.ConnectionStrings;
+            return new ConnectionStringSettings
+            {
+                AccessControlDb = persisted?.AccessControlDb ?? configuration.GetConnectionString("AccessControlDb") ?? string.Empty,
+                StaffDb = persisted?.StaffDb ?? configuration.GetConnectionString("StaffDb") ?? string.Empty,
+                StudentDb = persisted?.StudentDb ?? configuration.GetConnectionString("StudentDb") ?? string.Empty,
+                PersonnelsDb = persisted?.PersonnelsDb ?? configuration.GetConnectionString("PersonnelsDb") ?? string.Empty
+            };
+        }
+    }
+    public string CurrentDatabaseConnectionString => CurrentConnectionStrings.AccessControlDb;
     public SimulationOptions CurrentSimulation
     {
         get
@@ -58,24 +69,21 @@ public sealed class MonitoringSettingsStore(
     public async Task SaveAsync(
         MonitoringOptions monitoring,
         SimulationOptions simulation,
-        string databaseConnectionString,
+        ConnectionStringSettings connectionStrings,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(monitoring);
         ArgumentNullException.ThrowIfNull(simulation);
+        ArgumentNullException.ThrowIfNull(connectionStrings);
         await gate.WaitAsync(cancellationToken);
         var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
         try
         {
             var config = new MonitoringConfigFile
             {
+                AllowedHosts = "*",
                 IsLiveMode = simulation.IsLiveMode,
-                ConnectionStrings = new ConnectionStringSettings
-                {
-                    AccessControlDb = databaseConnectionString,
-                    StaffDb = configuration.GetConnectionString("StaffDb") ?? string.Empty,
-                    StudentDb = configuration.GetConnectionString("StudentDb") ?? string.Empty
-                },
+                ConnectionStrings = connectionStrings.Clone(),
                 Monitoring = monitoring.Clone(),
                 Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
                 {
@@ -138,16 +146,27 @@ public sealed class MonitoringSettingsStore(
 
     private sealed class MonitoringConfigFile
     {
+        public string AllowedHosts { get; set; } = "*";
         public bool IsLiveMode { get; set; } = true;
         public ConnectionStringSettings? ConnectionStrings { get; set; }
         public MonitoringOptions Monitoring { get; set; } = new();
         public SentryAppBlazor.Turnstile.SimulationOptions? Simulation { get; set; }
     }
 
-    private sealed class ConnectionStringSettings
+}
+
+public sealed class ConnectionStringSettings
+{
+    public string AccessControlDb { get; set; } = string.Empty;
+    public string StaffDb { get; set; } = string.Empty;
+    public string StudentDb { get; set; } = string.Empty;
+    public string PersonnelsDb { get; set; } = string.Empty;
+
+    public ConnectionStringSettings Clone() => new()
     {
-        public string AccessControlDb { get; set; } = string.Empty;
-        public string StaffDb { get; set; } = string.Empty;
-        public string StudentDb { get; set; } = string.Empty;
-    }
+        AccessControlDb = AccessControlDb,
+        StaffDb = StaffDb,
+        StudentDb = StudentDb,
+        PersonnelsDb = PersonnelsDb
+    };
 }
