@@ -11,13 +11,13 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode simulates live DeviceLogs traffic</strong><span>Demo copies the personnel/device references from the newest valid live DeviceLogs record and inserts a new sample event into Access Control DeviceLogs. Personnels, STAFF, and STUDENT remain read-only lookup sources.</span></div>
+    <div class="notice"><strong>Demo mode simulates live DeviceLogs traffic</strong><span>Demo reuses the newest valid DeviceLogs references when available; on an empty log table it selects an active person from Personnels and a device from Access Control. Choose Demo, enable automatic logs, disable live database mode, apply, then press Start on the monitor.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
-            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes sample records to DeviceLogs using a valid live record as its source.</small></label>
+            <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes sample records to DeviceLogs using valid personnel and device references.</small></label>
             <label>Automatic demo logs<select @onchange="UpdateAutomaticDemoLogs"><option value="enabled" selected="@Model.EnableSimulatedLogs">Enabled</option><option value="disabled" selected="@(!Model.EnableSimulatedLogs)">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
