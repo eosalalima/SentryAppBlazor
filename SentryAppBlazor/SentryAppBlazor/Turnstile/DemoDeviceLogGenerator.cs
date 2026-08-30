@@ -22,12 +22,24 @@ public sealed class DemoDeviceLogGenerator(
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
+        var demoWasEnabled = false;
+
         while (!token.IsCancellationRequested)
         {
             try
             {
                 var simulation = settings.CurrentSimulation;
                 var monitoring = settings.Current;
+                var demoIsEnabled = IsDemoEnabled(simulation, monitoring);
+
+                // A persisted demo configuration must work after an application
+                // restart, before a browser is connected to click Start. Only
+                // start on the disabled-to-enabled edge so an operator can still
+                // stop monitoring without the worker immediately starting it again.
+                if (ShouldStartMonitoring(demoWasEnabled, demoIsEnabled, controller.IsActive))
+                    controller.TryStart();
+                demoWasEnabled = demoIsEnabled;
+
                 if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), time, token);
@@ -65,5 +77,11 @@ public sealed class DemoDeviceLogGenerator(
         var maximum = Math.Max(minimum, simulation.MaximumDelaySeconds);
         return TimeSpan.FromSeconds(random.Next(minimum, maximum + 1));
     }
+
+    internal static bool ShouldStartMonitoring(
+        bool demoWasEnabled,
+        bool demoIsEnabled,
+        bool monitoringActive) =>
+        !demoWasEnabled && demoIsEnabled && !monitoringActive;
 
 }
