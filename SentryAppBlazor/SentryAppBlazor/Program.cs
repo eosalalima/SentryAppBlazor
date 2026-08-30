@@ -19,8 +19,9 @@ builder.Services.AddOptions<SimulationOptions>().BindConfiguration("Simulation")
 // Resolve this connection for every context so Apply in Monitoring Settings is
 // immediately honored by both the DeviceLogs poller and demo-data generator.
 builder.Services.AddSingleton<IDbContextFactory<AccessControlDbContext>, MonitoringAccessControlDbContextFactory>();
-builder.Services.AddDbContextFactory<StaffDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("StaffDb")));
-builder.Services.AddDbContextFactory<StudentDbContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("StudentDb")));
+builder.Services.AddSingleton<IDbContextFactory<PersonnelsDbContext>, MonitoringPersonnelsDbContextFactory>();
+builder.Services.AddSingleton<IDbContextFactory<StaffDbContext>, MonitoringStaffDbContextFactory>();
+builder.Services.AddSingleton<IDbContextFactory<StudentDbContext>, MonitoringStudentDbContextFactory>();
 builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleton(Random.Shared);
 builder.Services.AddSingleton<TurnstilePollingController>(); builder.Services.AddSingleton<TurnstileLogState>();
 builder.Services.AddSingleton<PersonnelLookupService>(); builder.Services.AddSingleton<DeviceLogWriter>();

@@ -4,17 +4,19 @@ using SentryAppBlazor.Data;
 namespace SentryAppBlazor.Turnstile;
 public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
+    IDbContextFactory<PersonnelsDbContext> personnelsFactory,
     ILogger<DeviceLogWriter> logger)
 {
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
+        await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
 
         // Resolve references with narrow SQL queries rather than materializing
         // mapped entities. Access-control databases vary between deployments and
         // may not contain every column represented by our read models.
         var accessNumber = await SelectDemoReferenceAsync(
-            db, "SELECT TOP (1) AccessNumber AS Value FROM dbo.Personnels WHERE IsDeleted = 0 AND AccessNumber <> '' ORDER BY NEWID()", token);
+            personnels, "SELECT TOP (1) AccessNumber AS Value FROM dbo.Personnels WHERE IsDeleted = 0 AND AccessNumber <> '' ORDER BY NEWID()", token);
         var serialNumber = await SelectDemoReferenceAsync(
             db, "SELECT TOP (1) SerialNumber AS Value FROM dbo.ZKDevices WHERE IsDeleted = 0 AND SerialNumber <> '' ORDER BY NEWID()", token);
 
@@ -44,7 +46,7 @@ public sealed class DeviceLogWriter(
     }
 
     private static async Task<string?> SelectDemoReferenceAsync(
-        AccessControlDbContext db, string sql, CancellationToken token) =>
+        DbContext db, string sql, CancellationToken token) =>
         await db.Database.SqlQueryRaw<string>(sql).FirstOrDefaultAsync(token);
 
     public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)

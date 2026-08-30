@@ -5,16 +5,20 @@ namespace SentryAppBlazor.Data;
 public sealed class AccessControlDbContext(DbContextOptions<AccessControlDbContext> options) : DbContext(options)
 {
     public DbSet<DeviceLog> DeviceLogs => Set<DeviceLog>();
-    public DbSet<Personnel> Personnels => Set<Personnel>();
     public DbSet<ZkDevice> ZkDevices => Set<ZkDevice>();
     public DbSet<TurnstileLogRow> TurnstileLogRows => Set<TurnstileLogRow>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<DeviceLog>().ToTable("DeviceLogs", "dbo");
-        b.Entity<Personnel>().ToTable("Personnels", "dbo").HasKey(x => x.AccessNumber);
         b.Entity<ZkDevice>().ToTable("ZKDevices", "dbo").HasKey(x => x.SerialNumber);
         b.Entity<TurnstileLogRow>().HasNoKey();
     }
+}
+public sealed class PersonnelsDbContext(DbContextOptions<PersonnelsDbContext> options) : DbContext(options)
+{
+    public DbSet<Personnel> Personnels => Set<Personnel>();
+    protected override void OnModelCreating(ModelBuilder b) =>
+        b.Entity<Personnel>().ToTable("Personnels", "dbo").HasKey(x => x.AccessNumber);
 }
 public abstract class DirectoryDbContext(DbContextOptions options) : DbContext(options)
 {
