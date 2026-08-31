@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c4ca88ea09567f7140e2da3480c4a4cc51fe5268")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+77ef4d90279683081a8972e8921855bad7f70ef3")]
 [assembly: System.Reflection.AssemblyProductAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SentryAppBlazor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
