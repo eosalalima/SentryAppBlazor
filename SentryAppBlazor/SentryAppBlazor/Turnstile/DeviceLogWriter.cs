@@ -51,10 +51,32 @@ public sealed class DeviceLogWriter(
     private async Task<Guid> InsertAsync(AccessControlDbContext db, string? accessNumber, string? serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
     {
         if (!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("A valid log type is required.", nameof(logType));
+        var id = Guid.NewGuid();
+
+        // DeviceLogs is an existing Access Control table rather than a schema
+        // managed by this application.  Write every production column
+        // explicitly so SQL Server defaults, missing defaults, and EF's value
+        // generation conventions cannot turn demo generation into a no-op.
+        // The database clock also keeps the new row ahead of the poller's
+        // timestamp cursor when the web server and SQL Server clocks differ.
+        if (db.Database.IsSqlServer())
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($@"
+INSERT INTO dbo.DeviceLogs
+    (Id, DateCreated, IsDeleted, RecordDate, TimeLogStamp, AccessNumber,
+     DeviceSerialNumber, CardNo, SiteCode, LinkId, Event, EventAddress,
+     LogType, VerifyMode, [Index], HasMask, Temperature, IsNotified)
+VALUES
+    ({id}, SYSDATETIMEOFFSET(), {false}, CONVERT(date, SYSDATETIMEOFFSET()),
+     SYSDATETIMEOFFSET(), {accessNumber}, {serial}, {cardNo}, NULL, NULL,
+     {eventCode}, {eventAddress}, {logType}, {verifyMode}, {0}, NULL, NULL, NULL)", token);
+            return id;
+        }
+
         var now = DateTimeOffset.UtcNow;
         var row = new DeviceLog
         {
-            Id = Guid.NewGuid(), DateCreated = now, RecordDate = now.UtcDateTime.Date,
+            Id = id, DateCreated = now, RecordDate = now.UtcDateTime.Date,
             TimeLogStamp = now, AccessNumber = accessNumber, DeviceSerialNumber = serial,
             CardNo = cardNo, Event = eventCode, EventAddress = eventAddress,
             LogType = logType, VerifyMode = verifyMode
