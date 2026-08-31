@@ -9,51 +9,27 @@ public sealed class DeviceLogWriter(
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
-
-        // Prefer references that the access-control database has already accepted.
-        // References are optional on DeviceLogs, so an empty database must still be
-        // able to receive demo events without depending on a second database.
-        var source = await db.Database.SqlQueryRaw<DemoLogSource>(
-            @"SELECT TOP (1) AccessNumber, DeviceSerialNumber
-              FROM dbo.DeviceLogs
-              WHERE IsDeleted = 0
-                AND AccessNumber IS NOT NULL AND LTRIM(RTRIM(AccessNumber)) <> ''
-                AND DeviceSerialNumber IS NOT NULL AND LTRIM(RTRIM(DeviceSerialNumber)) <> ''
-              ORDER BY TimeLogStamp DESC, Id DESC")
+        var source = await db.DeviceLogs.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "" &&
+                        x.DeviceSerialNumber != null && x.DeviceSerialNumber != "")
+            .OrderByDescending(x => x.TimeLogStamp).ThenByDescending(x => x.Id)
+            .Select(x => new DemoLogSource { AccessNumber = x.AccessNumber, DeviceSerialNumber = x.DeviceSerialNumber })
             .FirstOrDefaultAsync(token);
 
         if (source is null)
         {
-            var serialNumber = await SelectDemoReferenceAsync(
-                db,
-                "SELECT TOP (1) SerialNumber AS Value FROM dbo.ZKDevices WHERE IsDeleted = 0 AND SerialNumber IS NOT NULL AND LTRIM(RTRIM(SerialNumber)) <> '' ORDER BY NEWID()",
-                token);
-
-            source = new DemoLogSource
-            {
-                AccessNumber = null,
-                DeviceSerialNumber = serialNumber
-            };
-
-            logger.LogInformation(
-                "No reusable DeviceLogs references were found; inserting a demo event with nullable references");
+            var personnel = db.Database.IsSqlite()
+                ? await db.Set<Personnel>().AsNoTracking().OrderBy(x => x.AccessNumber)
+                    .Select(x => x.AccessNumber).FirstOrDefaultAsync(token)
+                : null;
+            var serial = await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted).OrderBy(x => x.SerialNumber)
+                .Select(x => x.SerialNumber).FirstOrDefaultAsync(token);
+            source = new DemoLogSource { AccessNumber = personnel, DeviceSerialNumber = serial };
         }
 
-        logger.LogDebug(
-            "Creating demo DeviceLogs record for personnel {AccessNumber} at device {SerialNumber}",
-            source.AccessNumber,
-            source.DeviceSerialNumber);
-
-        return await InsertAsync(
-            db,
-            source.AccessNumber,
-            source.DeviceSerialNumber,
+        return await InsertAsync(db, source.AccessNumber, source.DeviceSerialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "TEST",
-            "20",
-            "1",
-            "200",
-            token);
+            "TEST", "20", "1", "200", token);
     }
 
     private sealed class DemoLogSource
@@ -61,12 +37,6 @@ public sealed class DeviceLogWriter(
         public string? AccessNumber { get; set; }
         public string? DeviceSerialNumber { get; set; }
     }
-
-    private static async Task<string?> SelectDemoReferenceAsync(
-        DbContext db,
-        string sql,
-        CancellationToken token) =>
-        await db.Database.SqlQueryRaw<string>(sql).FirstOrDefaultAsync(token);
 
     public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)
         => await InsertAsync(accessNumber, serial, logType, marker, "20", "1", "200", token);
@@ -81,11 +51,17 @@ public sealed class DeviceLogWriter(
     private async Task<Guid> InsertAsync(AccessControlDbContext db, string? accessNumber, string? serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
     {
         if (!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("A valid log type is required.", nameof(logType));
-        var id=Guid.NewGuid();
-        // Use the database clock for the row's watermark columns.  The polling
-        // cursor is also based on the database clock, so a clock/time-zone skew
-        // between IIS and SQL Server cannot make a newly inserted row look old.
-        await db.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO dbo.DeviceLogs (Id,DateCreated,IsDeleted,RecordDate,TimeLogStamp,AccessNumber,DeviceSerialNumber,CardNo,SiteCode,LinkId,Event,EventAddress,LogType,VerifyMode,[Index],HasMask,Temperature,IsNotified)
-VALUES ({id},SYSDATETIMEOFFSET(),0,CONVERT(date,SYSDATETIMEOFFSET()),SYSDATETIMEOFFSET(),{accessNumber},{serial},{cardNo},NULL,NULL,{eventCode},{eventAddress},{logType},{verifyMode},0,NULL,NULL,NULL)",token); return id;
+        var now = DateTimeOffset.UtcNow;
+        var row = new DeviceLog
+        {
+            Id = Guid.NewGuid(), DateCreated = now, RecordDate = now.UtcDateTime.Date,
+            TimeLogStamp = now, AccessNumber = accessNumber, DeviceSerialNumber = serial,
+            CardNo = cardNo, Event = eventCode, EventAddress = eventAddress,
+            LogType = logType, VerifyMode = verifyMode
+        };
+        db.DeviceLogs.Add(row);
+        await db.SaveChangesAsync(token);
+        return row.Id;
     }
+
 }

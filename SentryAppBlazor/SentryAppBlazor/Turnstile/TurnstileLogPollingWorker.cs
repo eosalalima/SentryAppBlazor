@@ -95,16 +95,25 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         var monitoring = settings.Current;
         var deviceId = string.IsNullOrWhiteSpace(monitoring.DeviceId) ? "all" : monitoring.DeviceId.Trim();
         var maximumRows = Math.Clamp(options.MaxRowsPerPoll, 1, 500);
-        FormattableString query = $@"SELECT TOP ({maximumRows}) dl.Id AS TimeLogId, dl.TimeLogStamp, dl.LogType, dl.AccessNumber, dl.DeviceSerialNumber, dl.VerifyMode,
-CAST(NULL AS nvarchar(256)) AS LastName, CAST(NULL AS nvarchar(256)) AS FirstName, CAST(NULL AS nvarchar(256)) AS PhotoId,
-dl.Event, dl.EventAddress, zk.Name AS DeviceName
-FROM dbo.DeviceLogs dl
-LEFT JOIN dbo.ZKDevices zk ON zk.SerialNumber = dl.DeviceSerialNumber AND zk.IsDeleted = 0
-WHERE dl.IsDeleted = 0
-AND (LOWER({deviceId}) = 'all' OR dl.DeviceSerialNumber = {deviceId})
-AND (dl.TimeLogStamp > {lastTimestamp} OR (dl.TimeLogStamp = {lastTimestamp} AND dl.Id > {lastId}))
-ORDER BY dl.TimeLogStamp ASC, dl.Id ASC";
-        var rows = await db.TurnstileLogRows.FromSqlInterpolated(query).AsNoTracking().ToListAsync(token);
+        var candidates = await db.DeviceLogs.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.TimeLogStamp >= lastTimestamp &&
+                        (deviceId.ToLower() == "all" || x.DeviceSerialNumber == deviceId))
+            .OrderBy(x => x.TimeLogStamp).ThenBy(x => x.Id)
+            .Take(maximumRows * 2)
+            .ToListAsync(token);
+        var deviceNames = await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted)
+            .ToDictionaryAsync(x => x.SerialNumber, x => x.Name, token);
+        var rows = candidates
+            .Where(x => x.TimeLogStamp > lastTimestamp ||
+                        (x.TimeLogStamp == lastTimestamp && x.Id.CompareTo(lastId) > 0))
+            .Take(maximumRows)
+            .Select(x => new TurnstileLogRow
+            {
+                TimeLogId = x.Id, TimeLogStamp = x.TimeLogStamp, LogType = x.LogType,
+                AccessNumber = x.AccessNumber, DeviceSerialNumber = x.DeviceSerialNumber,
+                VerifyMode = x.VerifyMode, Event = x.Event, EventAddress = x.EventAddress,
+                DeviceName = x.DeviceSerialNumber is not null && deviceNames.TryGetValue(x.DeviceSerialNumber, out var name) ? name : null
+            }).ToList();
 
         var accessNumbers = rows.Select(x => x.AccessNumber).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().ToArray();
         if (accessNumbers.Length > 0)

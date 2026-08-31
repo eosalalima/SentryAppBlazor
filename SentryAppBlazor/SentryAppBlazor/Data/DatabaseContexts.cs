@@ -10,7 +10,13 @@ public sealed class AccessControlDbContext(DbContextOptions<AccessControlDbConte
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<DeviceLog>().ToTable("DeviceLogs", "dbo");
+        if (Database.IsSqlite())
+        {
+            b.Entity<DeviceLog>().Property(x => x.DateCreated).HasConversion<long>();
+            b.Entity<DeviceLog>().Property(x => x.TimeLogStamp).HasConversion<long>();
+        }
         b.Entity<ZkDevice>().ToTable("ZKDevices", "dbo").HasKey(x => x.SerialNumber);
+        b.Entity<Personnel>().ToTable("Personnels", "dbo").HasKey(x => x.AccessNumber);
         b.Entity<TurnstileLogRow>().HasNoKey();
     }
 }

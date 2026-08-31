@@ -18,11 +18,21 @@ public sealed class MonitoringAccessControlDbContextFactory(MonitoringSettingsSt
             throw new InvalidOperationException(
                 "Set the Database connection string in Monitoring Settings before starting monitoring or generating demo data.");
 
-        var options = new DbContextOptionsBuilder<AccessControlDbContext>()
-            .UseSqlServer(connectionString)
-            .Options;
+        var options = ConfigureProvider(new DbContextOptionsBuilder<AccessControlDbContext>(), connectionString).Options;
 
         return new AccessControlDbContext(options);
+    }
+
+    internal static DbContextOptionsBuilder<TContext> ConfigureProvider<TContext>(
+        DbContextOptionsBuilder<TContext> builder, string connectionString) where TContext : DbContext
+    {
+        if (connectionString.Contains("Filename=", StringComparison.OrdinalIgnoreCase) ||
+            (connectionString.Contains("Data Source=", StringComparison.OrdinalIgnoreCase) &&
+             (connectionString.Contains(".db", StringComparison.OrdinalIgnoreCase) ||
+              connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase))))
+            return builder.UseSqlite(connectionString);
+
+        return builder.UseSqlServer(connectionString);
     }
 }
 
@@ -37,7 +47,7 @@ public sealed class MonitoringPersonnelsDbContextFactory(MonitoringSettingsStore
     {
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException($"Set the {databaseName} connection string in Monitoring Settings before starting monitoring or generating demo data.");
-        return new DbContextOptionsBuilder<TContext>().UseSqlServer(connectionString).Options;
+        return MonitoringAccessControlDbContextFactory.ConfigureProvider(new DbContextOptionsBuilder<TContext>(), connectionString).Options;
     }
 }
 
