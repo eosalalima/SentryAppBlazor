@@ -44,15 +44,13 @@ public sealed class TurnstileServicesTests
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
     [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Theory]
-    [InlineData("Demo", true, true)]
-    [InlineData("demo", true, true)]
-    [InlineData("Live", true, false)]
-    [InlineData("Demo", false, false)]
-    public void Generator_requires_demo_mode_and_active_monitoring(string mode, bool active, bool expected)
+    [InlineData("Demo", true)]
+    [InlineData("demo", true)]
+    [InlineData("Live", false)]
+    public void Generator_requires_only_demo_mode(string mode, bool expected)
     {
         Assert.Equal(expected, DemoDeviceLogGenerator.ShouldGenerate(
-            new MonitoringOptions { OperatingMode=mode },
-            active));
+            new MonitoringOptions { OperatingMode=mode }));
     }
     [Theory]
     [InlineData("Demo", true)]
@@ -78,6 +76,7 @@ public sealed class TurnstileServicesTests
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
     }
     [Fact]
     public void Generator_does_not_have_an_automatic_monitoring_start_path()

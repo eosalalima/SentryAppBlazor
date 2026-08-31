@@ -4,7 +4,6 @@ namespace SentryAppBlazor.Turnstile;
 
 public sealed class DemoDeviceLogGenerator(
     DeviceLogWriter writer,
-    TurnstilePollingController controller,
     MonitoringSettingsStore settings,
     TimeProvider time,
     Random random,
@@ -12,8 +11,7 @@ public sealed class DemoDeviceLogGenerator(
 {
     public static readonly string[] LogTypes = ["IN", "OUT", "BREAK OUT"];
 
-    public static bool ShouldGenerate(MonitoringOptions monitoring, bool monitoringActive) =>
-        IsDemoMode(monitoring) && monitoringActive;
+    public static bool ShouldGenerate(MonitoringOptions monitoring) => IsDemoMode(monitoring);
 
     public static bool IsDemoMode(MonitoringOptions monitoring) =>
         monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase);
@@ -24,29 +22,23 @@ public sealed class DemoDeviceLogGenerator(
         {
             try
             {
-                // The operator's Start button is the only action that makes demo
-                // generation active. OperatingMode controls what Start does.
-                await controller.WaitUntilActiveAsync(token);
-
                 var monitoring = settings.Current;
 
-                if (!ShouldGenerate(monitoring, controller.IsActive))
+                if (!ShouldGenerate(monitoring))
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), time, token);
                     continue;
                 }
 
-                // Wait between every attempt, including the first after Start.
-                await Task.Delay(GetDelay(monitoring), time, token);
-
-                // Do not write if settings or controller state changed while waiting.
-                monitoring = settings.Current;
-                if (!ShouldGenerate(monitoring, controller.IsActive))
-                    continue;
-
+                // Demo mode is a standalone database-data generator. It does not
+                // depend on the monitor page, a connected browser, or the polling
+                // controller: insert once immediately and then use the configured
+                // interval between subsequent rows.
                 var logId = await writer.InsertDemoAsync(random, token);
                 if (logId.HasValue)
                     logger.LogInformation("Inserted demo turnstile event {LogId} into DeviceLogs", logId.Value);
+
+                await Task.Delay(GetDelay(monitoring), time, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
