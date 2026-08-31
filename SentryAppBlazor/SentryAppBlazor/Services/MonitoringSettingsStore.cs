@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using SentryAppBlazor.Turnstile;
 
 namespace SentryAppBlazor.Services;
 
@@ -8,7 +7,6 @@ public sealed class MonitoringSettingsStore(
     IWebHostEnvironment environment,
     IConfiguration configuration,
     IOptionsMonitor<MonitoringOptions> options,
-    IOptionsMonitor<SentryAppBlazor.Turnstile.SimulationOptions> simulationOptions,
     ILogger<MonitoringSettingsStore> logger)
 {
     public const string ConfigFileName = "sentryconfig.json";
@@ -32,48 +30,12 @@ public sealed class MonitoringSettingsStore(
         }
     }
     public string CurrentDatabaseConnectionString => CurrentConnectionStrings.AccessControlDb;
-    public SimulationOptions CurrentSimulation
-    {
-        get
-        {
-            var config = LoadConfig();
-            return ResolveSimulation(
-                config?.IsLiveMode,
-                config?.Monitoring,
-                config?.Simulation,
-                simulationOptions.CurrentValue);
-        }
-    }
-
-    // Older sentryconfig.json files stored IsLiveMode at the root and the demo
-    // switch under Monitoring, without a Simulation section.  Falling all the
-    // way back to appsettings.json in that case silently re-enabled live mode,
-    // preventing the demo generator from ever writing a row.
-    internal static SimulationOptions ResolveSimulation(
-        bool? legacyIsLiveMode,
-        MonitoringOptions? monitoring,
-        SimulationOptions? persisted,
-        SimulationOptions defaults)
-    {
-        if (persisted is not null)
-            return persisted.Clone();
-
-        var resolved = defaults.Clone();
-        if (legacyIsLiveMode.HasValue)
-            resolved.IsLiveMode = legacyIsLiveMode.Value;
-        if (monitoring is not null)
-            resolved.EnableSimulatedLogs = monitoring.EnableSimulatedLogs;
-        return resolved;
-    }
-
     public async Task SaveAsync(
         MonitoringOptions monitoring,
-        SimulationOptions simulation,
         ConnectionStringSettings connectionStrings,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(monitoring);
-        ArgumentNullException.ThrowIfNull(simulation);
         ArgumentNullException.ThrowIfNull(connectionStrings);
         await gate.WaitAsync(cancellationToken);
         var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
@@ -82,18 +44,8 @@ public sealed class MonitoringSettingsStore(
             var config = new MonitoringConfigFile
             {
                 AllowedHosts = "*",
-                IsLiveMode = simulation.IsLiveMode,
                 ConnectionStrings = connectionStrings.Clone(),
-                Monitoring = monitoring.Clone(),
-                Simulation = new SentryAppBlazor.Turnstile.SimulationOptions
-                {
-                    IsLiveMode = simulation.IsLiveMode,
-                    EnableSimulatedLogs = monitoring.EnableSimulatedLogs,
-                    EnableManualTestLogs = simulation.EnableManualTestLogs,
-                    AdministrationKey = simulation.AdministrationKey,
-                    MinimumDelaySeconds = simulation.MinimumDelaySeconds,
-                    MaximumDelaySeconds = simulation.MaximumDelaySeconds
-                }
+                Monitoring = monitoring.Clone()
             };
             await using (var stream = new FileStream(
                 temporaryPath,
@@ -147,10 +99,8 @@ public sealed class MonitoringSettingsStore(
     private sealed class MonitoringConfigFile
     {
         public string AllowedHosts { get; set; } = "*";
-        public bool IsLiveMode { get; set; } = true;
         public ConnectionStringSettings? ConnectionStrings { get; set; }
         public MonitoringOptions Monitoring { get; set; } = new();
-        public SentryAppBlazor.Turnstile.SimulationOptions? Simulation { get; set; }
     }
 
 }

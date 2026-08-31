@@ -2,7 +2,6 @@
 @inject MonitoringSettingsStore SettingsStore
 @inject NavigationManager Navigation
 @inject ILogger<Settings> Logger
-@using SentryAppBlazor.Turnstile
 
 <PageTitle>Settings · Sentry</PageTitle>
 <header class="monitor-header compact">
@@ -11,14 +10,14 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode simulates live DeviceLogs traffic</strong><span>Demo reuses the newest valid DeviceLogs references when available; on an empty log table it selects an active person from Personnels and a device from Access Control. Choose Demo, enable automatic logs, disable live database mode, apply, then press Start on the monitor.</span></div>
+    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>Demo reuses the newest valid DeviceLogs references when available; on an empty log table it selects an active person from Personnels and a device from Access Control. Choose Demo, set the interval, apply, then press Start on the monitor. Press Stop to end generation.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
             <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes sample records to DeviceLogs using valid personnel and device references.</small></label>
-            <label>Automatic demo logs<select @onchange="UpdateAutomaticDemoLogs"><option value="enabled" selected="@Model.EnableSimulatedLogs">Enabled</option><option value="disabled" selected="@(!Model.EnableSimulatedLogs)">Disabled</option></select><small>Additional write-safety switch; it has no effect in Live mode.</small></label>
+            <label>Demo log interval (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoLogIntervalSeconds" /><ValidationMessage For="() => Model.DemoLogIntervalSeconds" /><small>While monitoring is started in Demo mode, one record is inserted after every interval.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
             <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>
@@ -30,12 +29,6 @@
             <label class="wide">STAFF connection string<input @bind="ConnectionStrings.StaffDb" autocomplete="off" spellcheck="false" /><small>Connection used for staff directory lookups.</small></label>
             <label class="wide">STUDENT connection string<input @bind="ConnectionStrings.StudentDb" autocomplete="off" spellcheck="false" /><small>Connection used for student directory lookups.</small></label>
             <label class="wide">Personnels connection string<input @bind="ConnectionStrings.PersonnelsDb" autocomplete="off" spellcheck="false" /><small>Connection used for personnel identity, names, photos, and demo access numbers.</small></label></div>
-        </section>
-        <section class="settings-card">
-            <h2>Demo safety</h2><div class="form-grid">
-            <label>Live database mode<select @onchange="UpdateLiveDatabaseMode"><option value="enabled" selected="@SimulationModel.IsLiveMode">Enabled</option><option value="disabled" selected="@(!SimulationModel.IsLiveMode)">Disabled</option></select><small>Keep enabled whenever the configured connection points to production.</small></label>
-            <label>Minimum log delay (seconds)<input type="number" min="1" max="3600" @bind="SimulationModel.MinimumDelaySeconds" /><ValidationMessage For="() => SimulationModel.MinimumDelaySeconds" /></label>
-            <label>Maximum log delay (seconds)<input type="number" min="1" max="3600" @bind="SimulationModel.MaximumDelaySeconds" /><ValidationMessage For="() => SimulationModel.MaximumDelaySeconds" /></label></div>
         </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>
@@ -61,7 +54,6 @@
 
 @code {
     private MonitoringOptions Model { get; set; } = new();
-    private SimulationOptions SimulationModel { get; set; } = new();
     private ConnectionStringSettings ConnectionStrings { get; set; } = new();
     private EditContext editContext = default!;
     private bool isSaving;
@@ -70,7 +62,6 @@
     protected override void OnInitialized()
     {
         Model = SettingsStore.Current;
-        SimulationModel = SettingsStore.CurrentSimulation;
         ConnectionStrings = SettingsStore.CurrentConnectionStrings;
         editContext = new EditContext(Model);
     }
@@ -89,7 +80,7 @@
         statusMessage = null;
         try
         {
-            await SettingsStore.SaveAsync(Model, SimulationModel, ConnectionStrings);
+            await SettingsStore.SaveAsync(Model, ConnectionStrings);
             Navigation.NavigateTo("/");
         }
         catch (Exception exception)
@@ -110,12 +101,6 @@
 
     private void UpdateOperatingMode(ChangeEventArgs args) =>
         Model.OperatingMode = args.Value?.ToString() ?? Model.OperatingMode;
-
-    private void UpdateAutomaticDemoLogs(ChangeEventArgs args) =>
-        Model.EnableSimulatedLogs = IsEnabled(args);
-
-    private void UpdateLiveDatabaseMode(ChangeEventArgs args) =>
-        SimulationModel.IsLiveMode = IsEnabled(args);
 
     private void UpdateSmsStatus(ChangeEventArgs args) =>
         Model.SmsEnabled = IsEnabled(args);

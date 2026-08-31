@@ -29,25 +29,6 @@ public sealed class TurnstilePollingOptions
     private static int Valid(string? value, int minimum, int maximum, int fallback) =>
         int.TryParse(value, out var parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
 }
-public sealed class SimulationOptions
-{
-    public bool IsLiveMode { get; set; } = true;
-    public bool EnableSimulatedLogs { get; set; }
-    public bool EnableManualTestLogs { get; set; }
-    public string? AdministrationKey { get; set; }
-    [Range(1, 3600)] public int MinimumDelaySeconds { get; set; } = 1;
-    [Range(1, 3600)] public int MaximumDelaySeconds { get; set; } = 10;
-
-    public SimulationOptions Clone() => new()
-    {
-        IsLiveMode = IsLiveMode,
-        EnableSimulatedLogs = EnableSimulatedLogs,
-        EnableManualTestLogs = EnableManualTestLogs,
-        AdministrationKey = AdministrationKey,
-        MinimumDelaySeconds = MinimumDelaySeconds,
-        MaximumDelaySeconds = MaximumDelaySeconds
-    };
-}
 public sealed record TurnstileLogEntry(Guid TimeLogId, DateTimeOffset TimeLogStamp, string? LogType, string? AccessNumber, string PersonnelName, string PhotoUrl, string? DeviceSerialNumber, string DeviceName, string? VerifyMode, string? Event, string? EventAddress, string SmsStatusMessage);
 public readonly record struct SmsSendResult(bool Success, string? Message = null);
 public interface ISmsSender { Task<SmsSendResult> SendAsync(string mobileNumber, string message, CancellationToken cancellationToken); }

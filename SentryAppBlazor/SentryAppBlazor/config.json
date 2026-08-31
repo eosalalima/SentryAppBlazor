@@ -1,6 +1,7 @@
 {
   "Monitoring": {
     "OperatingMode": "Demo",
+    "DemoLogIntervalSeconds": 10,
     "DeviceId": "all",
     "PhotosPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Photos\\Photos",
     "PollingInterval": 500,

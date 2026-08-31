@@ -6,7 +6,7 @@ public sealed class MonitoringOptions
 {
     public const string SectionName = "Monitoring";
     public string OperatingMode { get; set; } = "Demo";
-    public bool EnableSimulatedLogs { get; set; }
+    [Range(1, 3_600)] public int DemoLogIntervalSeconds { get; set; } = 10;
     public string DeviceId { get; set; } = "all";
     public string PhotosPath { get; set; } = @"F:\Projects\Dr. Gloria D Lacson School\Photos\Photos";
     [Range(250, 60_000)] public int PollingInterval { get; set; } = 500;
@@ -22,7 +22,7 @@ public sealed class MonitoringOptions
     public MonitoringOptions Clone() => new()
     {
         OperatingMode = OperatingMode,
-        EnableSimulatedLogs = EnableSimulatedLogs,
+        DemoLogIntervalSeconds = DemoLogIntervalSeconds,
         DeviceId = DeviceId,
         PhotosPath = PhotosPath,
         PollingInterval = PollingInterval,
