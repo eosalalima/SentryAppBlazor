@@ -22,6 +22,7 @@ builder.Services.AddSingleton(TimeProvider.System); builder.Services.AddSingleto
 builder.Services.AddSingleton<TurnstilePollingController>(); builder.Services.AddSingleton<TurnstileLogState>();
 builder.Services.AddSingleton<PersonnelLookupService>(); builder.Services.AddSingleton<DeviceLogWriter>();
 builder.Services.AddSingleton<IPhotoUrlBuilder,PhotoUrlBuilder>(); builder.Services.AddSingleton<ISmsSender,LoggingSmsSender>();
+builder.Services.AddHostedService<DemoDatabaseInitializer>();
 builder.Services.AddHostedService<TurnstileLogPollingWorker>(); builder.Services.AddHostedService<DemoDeviceLogGenerator>();
 builder.Services.AddSingleton<MonitoringSettingsStore>(); builder.Services.AddSingleton<PhotoService>();
 
