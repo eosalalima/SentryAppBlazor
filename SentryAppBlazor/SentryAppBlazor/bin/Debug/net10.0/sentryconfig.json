@@ -1,6 +1,5 @@
 {
   "AllowedHosts": "*",
-  "IsLiveMode": false,
   "ConnectionStrings": {
     "AccessControlDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=Access Control;Integrated Security=True;TrustServerCertificate=True;",
     "StaffDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=STAFF;Integrated Security=True;TrustServerCertificate=True;",
@@ -9,7 +8,7 @@
   },
   "Monitoring": {
     "OperatingMode": "Demo",
-    "EnableSimulatedLogs": true,
+    "DemoLogIntervalSeconds": 10,
     "DeviceId": "all",
     "PhotosPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Photos\\Photos",
     "PollingInterval": 500,
@@ -21,12 +20,5 @@
     "SmsComPort": "COM4",
     "SmsTimeoutSeconds": 30,
     "SmsRetryCount": 2
-  },
-  "Simulation": {
-    "IsLiveMode": false,
-    "EnableSimulatedLogs": true,
-    "EnableManualTestLogs": false,
-    "MinimumDelaySeconds": 1,
-    "MaximumDelaySeconds": 10
   }
 }
