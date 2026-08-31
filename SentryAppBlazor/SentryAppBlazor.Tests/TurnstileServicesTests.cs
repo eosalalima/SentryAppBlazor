@@ -3,6 +3,7 @@ using SentryAppBlazor.Turnstile;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Tests;
@@ -115,6 +116,45 @@ public sealed class TurnstileServicesTests
             parameter.ParameterType == typeof(IDbContextFactory<PersonnelsDbContext>));
     }
     [Fact]
+    public async Task Demo_writer_inserts_a_persisted_device_log()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
+        var options = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite($"Data Source={databasePath}")
+            .Options;
+
+        try
+        {
+            await using (var setup = new DemoDatabaseContext(
+                new DbContextOptionsBuilder<DemoDatabaseContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                setup.ZkDevices.Add(new ZkDevice { SerialNumber = "TEST-GATE", Name = "Test gate" });
+                setup.Personnels.Add(new Personnel { AccessNumber = "TEST-1001", FirstName = "Test" });
+                await setup.SaveChangesAsync();
+            }
+
+            var writer = new DeviceLogWriter(
+                new TestAccessControlDbContextFactory(options),
+                NullLogger<DeviceLogWriter>.Instance);
+
+            var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+
+            Assert.NotNull(id);
+            await using var verification = new AccessControlDbContext(options);
+            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
+            Assert.Equal("TEST-1001", row.AccessNumber);
+            Assert.Equal("TEST-GATE", row.DeviceSerialNumber);
+            Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes);
+            Assert.Equal("TEST", row.CardNo);
+        }
+        finally
+        {
+            File.Delete(databasePath);
+        }
+    }
+    [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
     {
         var constructor = Assert.Single(typeof(MonitoringAccessControlDbContextFactory).GetConstructors());
@@ -164,4 +204,10 @@ public sealed class TurnstileServicesTests
         Assert.Equal(75, options.MaxRowsPerPoll);
     }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
+
+    private sealed class TestAccessControlDbContextFactory(DbContextOptions<AccessControlDbContext> options)
+        : IDbContextFactory<AccessControlDbContext>
+    {
+        public AccessControlDbContext CreateDbContext() => new(options);
+    }
 }
