@@ -12,13 +12,11 @@ public sealed class DemoDeviceLogGenerator(
 {
     public static readonly string[] LogTypes = ["IN", "OUT", "BREAK OUT"];
 
-    public static bool ShouldGenerate(SimulationOptions simulation, MonitoringOptions monitoring, bool monitoringActive) =>
-        IsDemoEnabled(simulation, monitoring) && monitoringActive;
+    public static bool ShouldGenerate(MonitoringOptions monitoring, bool monitoringActive) =>
+        IsDemoMode(monitoring) && monitoringActive;
 
-    public static bool IsDemoEnabled(SimulationOptions simulation, MonitoringOptions monitoring) =>
-        !simulation.IsLiveMode &&
-        monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase) &&
-        monitoring.EnableSimulatedLogs;
+    public static bool IsDemoMode(MonitoringOptions monitoring) =>
+        monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
@@ -26,26 +24,24 @@ public sealed class DemoDeviceLogGenerator(
         {
             try
             {
-                // Demo generation is operator-controlled. Persisted demo settings
-                // only make generation eligible; they must never start monitoring.
+                // The operator's Start button is the only action that makes demo
+                // generation active. OperatingMode controls what Start does.
                 await controller.WaitUntilActiveAsync(token);
 
-                var simulation = settings.CurrentSimulation;
                 var monitoring = settings.Current;
 
-                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
+                if (!ShouldGenerate(monitoring, controller.IsActive))
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), time, token);
                     continue;
                 }
 
                 // Wait between every attempt, including the first after Start.
-                await Task.Delay(GetDelay(simulation, random), time, token);
+                await Task.Delay(GetDelay(monitoring), time, token);
 
                 // Do not write if settings or controller state changed while waiting.
-                simulation = settings.CurrentSimulation;
                 monitoring = settings.Current;
-                if (!ShouldGenerate(simulation, monitoring, controller.IsActive))
+                if (!ShouldGenerate(monitoring, controller.IsActive))
                     continue;
 
                 var logId = await writer.InsertDemoAsync(random, token);
@@ -64,11 +60,7 @@ public sealed class DemoDeviceLogGenerator(
         }
     }
 
-    internal static TimeSpan GetDelay(SimulationOptions simulation, Random random)
-    {
-        var minimum = Math.Max(1, simulation.MinimumDelaySeconds);
-        var maximum = Math.Max(minimum, simulation.MaximumDelaySeconds);
-        return TimeSpan.FromSeconds(random.Next(minimum, maximum + 1));
-    }
+    internal static TimeSpan GetDelay(MonitoringOptions monitoring) =>
+        TimeSpan.FromSeconds(Math.Max(1, monitoring.DemoLogIntervalSeconds));
 
 }

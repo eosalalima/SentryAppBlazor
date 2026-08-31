@@ -43,63 +43,32 @@ public sealed class TurnstileServicesTests
     [Theory] [InlineData(null,"/img/avatar-placeholder.svg")] [InlineData("","/img/avatar-placeholder.svg")] [InlineData("../secret.jpg","/img/avatar-placeholder.svg")] [InlineData("person.jpg","/photos/person.jpg")]
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
     [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
-    [Fact] public void Production_defaults_disable_simulation() { var o=new SimulationOptions(); Assert.True(o.IsLiveMode);Assert.False(o.EnableSimulatedLogs);Assert.False(o.EnableManualTestLogs); }
     [Theory]
-    [InlineData(false, "Demo", true, true, true)]
-    [InlineData(false, "Demo", false, true, false)]
-    [InlineData(true, "Demo", true, true, false)]
-    [InlineData(false, "Live", true, true, false)]
-    [InlineData(false, "Demo", true, false, false)]
-    public void Generator_requires_all_demo_safety_settings_and_active_monitoring(bool live, string mode, bool enabled, bool active, bool expected)
+    [InlineData("Demo", true, true)]
+    [InlineData("demo", true, true)]
+    [InlineData("Live", true, false)]
+    [InlineData("Demo", false, false)]
+    public void Generator_requires_demo_mode_and_active_monitoring(string mode, bool active, bool expected)
     {
         Assert.Equal(expected, DemoDeviceLogGenerator.ShouldGenerate(
-            new SimulationOptions { IsLiveMode=live },
-            new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled },
+            new MonitoringOptions { OperatingMode=mode },
             active));
     }
     [Theory]
-    [InlineData(false, "Demo", true, true)]
-    [InlineData(true, "Demo", true, false)]
-    [InlineData(false, "Live", true, false)]
-    [InlineData(false, "Demo", false, false)]
-    public void Generator_is_enabled_only_for_safe_demo_settings(bool live, string mode, bool enabled, bool expected)
+    [InlineData("Demo", true)]
+    [InlineData("demo", true)]
+    [InlineData("Live", false)]
+    public void Generator_is_enabled_only_in_demo_mode(string mode, bool expected)
     {
-        Assert.Equal(expected, DemoDeviceLogGenerator.IsDemoEnabled(
-            new SimulationOptions { IsLiveMode=live },
-            new MonitoringOptions { OperatingMode=mode, EnableSimulatedLogs=enabled }));
+        Assert.Equal(expected, DemoDeviceLogGenerator.IsDemoMode(
+            new MonitoringOptions { OperatingMode=mode }));
     }
     [Fact]
-    public void Generator_uses_the_configured_demo_delay_range()
+    public void Generator_uses_the_configured_demo_interval()
     {
-        var options = new SimulationOptions { MinimumDelaySeconds = 17, MaximumDelaySeconds = 17 };
+        var options = new MonitoringOptions { DemoLogIntervalSeconds = 17 };
 
-        Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options, new Random(1)));
-    }
-    [Fact]
-    public void Legacy_persisted_demo_settings_override_live_appsettings_defaults()
-    {
-        var defaults = new SimulationOptions { IsLiveMode = true, EnableSimulatedLogs = false };
-        var monitoring = new MonitoringOptions { OperatingMode = "Demo", EnableSimulatedLogs = true };
-
-        var resolved = MonitoringSettingsStore.ResolveSimulation(false, monitoring, null, defaults);
-
-        Assert.False(resolved.IsLiveMode);
-        Assert.True(resolved.EnableSimulatedLogs);
-        Assert.True(DemoDeviceLogGenerator.IsDemoEnabled(resolved, monitoring));
-    }
-    [Fact]
-    public void Persisted_simulation_section_takes_precedence_over_legacy_settings()
-    {
-        var persisted = new SimulationOptions { IsLiveMode = true, EnableSimulatedLogs = false };
-
-        var resolved = MonitoringSettingsStore.ResolveSimulation(
-            false,
-            new MonitoringOptions { EnableSimulatedLogs = true },
-            persisted,
-            new SimulationOptions());
-
-        Assert.True(resolved.IsLiveMode);
-        Assert.False(resolved.EnableSimulatedLogs);
+        Assert.Equal(TimeSpan.FromSeconds(17), DemoDeviceLogGenerator.GetDelay(options));
     }
     [Fact]
     public void Generator_writes_demo_records_to_device_logs()

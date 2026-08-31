@@ -1,7 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using System.Security.Cryptography;
-using System.Text;
 using SentryAppBlazor.Components;
 using SentryAppBlazor.Data;
 using SentryAppBlazor.Services;
@@ -15,7 +12,6 @@ builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.Configure<HostOptions>(options =>
     options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 builder.Services.AddOptions<MonitoringOptions>().Bind(builder.Configuration.GetSection(MonitoringOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
-builder.Services.AddOptions<SimulationOptions>().BindConfiguration("Simulation").ValidateDataAnnotations().Validate(x => x.MaximumDelaySeconds >= x.MinimumDelaySeconds, "Maximum delay must be at least minimum delay.").ValidateOnStart();
 // Resolve this connection for every context so Apply in Monitoring Settings is
 // immediately honored by both the DeviceLogs poller and demo-data generator.
 builder.Services.AddSingleton<IDbContextFactory<AccessControlDbContext>, MonitoringAccessControlDbContextFactory>();
@@ -33,13 +29,5 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", createScopeForErrors: true); app.UseHsts(); }
 app.UseHttpsRedirection(); app.UseStaticFiles(); app.UseAntiforgery();
 app.MapGet("/photos/{photoId}", (string photoId, PhotoService photos) => photos.Get(photoId));
-app.MapPost("/admin/test-logs", async (HttpRequest http, ManualLogRequest request, DeviceLogWriter writer, IOptions<SimulationOptions> options, CancellationToken token) =>
-{
-    var configured=options.Value.AdministrationKey; var supplied=http.Headers["X-Test-Log-Key"].ToString();
-    if(options.Value.IsLiveMode || !options.Value.EnableManualTestLogs) return Results.NotFound();
-    if(string.IsNullOrEmpty(configured) || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(configured),Encoding.UTF8.GetBytes(supplied))) return Results.Unauthorized();
-    return Results.Ok(new { Id=await writer.InsertAsync(request.AccessNumber,request.DeviceSerialNumber,request.LogType,"MANUAL-TEST",token) });
-});
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode(); app.Run();
-public sealed record ManualLogRequest(string AccessNumber,string DeviceSerialNumber,string LogType);
 public partial class Program { }
