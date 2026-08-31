@@ -10,14 +10,14 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>Demo reuses the newest valid DeviceLogs references when available; on an empty log table it selects an active person from Personnels and a device from Access Control. Choose Demo, set the interval, apply, then press Start on the monitor. Press Stop to end generation.</span></div>
+    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>Demo reuses the newest valid DeviceLogs references when available. If none exist, it still inserts a record using nullable references and an available Access Control device. Choose Demo, set the interval, and apply; generation runs automatically while Demo mode is selected.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
             <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes sample records to DeviceLogs using valid personnel and device references.</small></label>
-            <label>Demo log interval (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoLogIntervalSeconds" /><ValidationMessage For="() => Model.DemoLogIntervalSeconds" /><small>While monitoring is started in Demo mode, one record is inserted after every interval.</small></label>
+            <label>Demo log interval (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoLogIntervalSeconds" /><ValidationMessage For="() => Model.DemoLogIntervalSeconds" /><small>In Demo mode, one record is inserted immediately and then after every interval.</small></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
             <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
             <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>

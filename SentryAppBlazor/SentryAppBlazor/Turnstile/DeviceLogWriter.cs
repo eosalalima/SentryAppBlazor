@@ -4,16 +4,15 @@ using SentryAppBlazor.Data;
 namespace SentryAppBlazor.Turnstile;
 public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
-    IDbContextFactory<PersonnelsDbContext> personnelsFactory,
     ILogger<DeviceLogWriter> logger)
 {
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
 
-        // Prefer a pair that the live pipeline has already accepted. An empty
-        // DeviceLogs table must not make demo mode circular, though, so resolve
-        // the two references from their authoritative tables as a fallback.
+        // Prefer references that the access-control database has already accepted.
+        // References are optional on DeviceLogs, so an empty database must still be
+        // able to receive demo events without depending on a second database.
         var source = await db.Database.SqlQueryRaw<DemoLogSource>(
             @"SELECT TOP (1) AccessNumber, DeviceSerialNumber
               FROM dbo.DeviceLogs
@@ -25,29 +24,19 @@ public sealed class DeviceLogWriter(
 
         if (source is null)
         {
-            await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
-            var accessNumber = await SelectDemoReferenceAsync(
-                personnels,
-                "SELECT TOP (1) AccessNumber AS Value FROM dbo.Personnels WHERE IsDeleted = 0 AND AccessNumber IS NOT NULL AND LTRIM(RTRIM(AccessNumber)) <> '' ORDER BY NEWID()",
-                token);
             var serialNumber = await SelectDemoReferenceAsync(
                 db,
                 "SELECT TOP (1) SerialNumber AS Value FROM dbo.ZKDevices WHERE IsDeleted = 0 AND SerialNumber IS NOT NULL AND LTRIM(RTRIM(SerialNumber)) <> '' ORDER BY NEWID()",
                 token);
 
-            if (accessNumber is null || serialNumber is null)
-            {
-                logger.LogWarning(
-                    "Skipping demo DeviceLogs insert because no valid {MissingReferences} record exists",
-                    accessNumber is null && serialNumber is null ? "Personnel or ZKDevice" : accessNumber is null ? "Personnel" : "ZKDevice");
-                return null;
-            }
-
             source = new DemoLogSource
             {
-                AccessNumber = accessNumber,
+                AccessNumber = null,
                 DeviceSerialNumber = serialNumber
             };
+
+            logger.LogInformation(
+                "No reusable DeviceLogs references were found; inserting a demo event with nullable references");
         }
 
         logger.LogDebug(
@@ -69,8 +58,8 @@ public sealed class DeviceLogWriter(
 
     private sealed class DemoLogSource
     {
-        public string AccessNumber { get; set; } = string.Empty;
-        public string DeviceSerialNumber { get; set; } = string.Empty;
+        public string? AccessNumber { get; set; }
+        public string? DeviceSerialNumber { get; set; }
     }
 
     private static async Task<string?> SelectDemoReferenceAsync(

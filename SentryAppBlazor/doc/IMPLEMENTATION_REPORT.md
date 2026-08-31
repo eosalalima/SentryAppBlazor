@@ -2,13 +2,13 @@
 
 The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWorker` creates a fresh Access Control context per cycle, performs the ordered left-join query with a `(TimeLogStamp, Id)` watermark, enriches each result using independent STAFF and STUDENT contexts, attempts the replaceable SMS transport, and publishes the event even when lookup or delivery fails. The feed and recently-seen-ID cache are bounded and thread safe.
 
-`DemoDeviceLogGenerator` is a separate hosted service. When the operator presses **Start** in Demo mode, it creates clearly marked sample records directly in Access Control `dbo.DeviceLogs` at the configured interval. Pressing **Stop** prevents further inserts. The generator does not create or enqueue an in-memory substitute for a database record.
+`DemoDeviceLogGenerator` is a separate hosted service. While Demo mode is selected, it creates clearly marked sample records directly in Access Control `dbo.DeviceLogs`, once immediately and then at the configured interval. It does not depend on the monitor page or create an in-memory substitute for a database record.
 
 ## Configuration and demo operation
 
 Supply secrets with user-secrets, a secret store, or environment variables (`ConnectionStrings__AccessControlDb`, `ConnectionStrings__PersonnelsDb`, `ConnectionStrings__StaffDb`, and `ConnectionStrings__StudentDb`). Committed appsettings values are intentionally blank. Access Control supplies the live `DeviceLogs` source and receives demo `DeviceLogs`; Personnels supplies identity; STAFF and STUDENT supply directory/mobile data. All four settings are resolved at operation time, so values applied in the settings page do not require an application restart. `Monitoring:OperatingMode` is the sole mode switch, and `Monitoring:DemoLogIntervalSeconds` sets the fixed delay between inserts.
 
-To generate records, choose **Demo**, set the demo log interval, apply the settings, and press **Start**. The generator prefers the personnel/device references from the newest valid `DeviceLogs` row. If no such row exists, it selects an active access number from Personnels and an active device from Access Control instead, allowing a new or empty `DeviceLogs` table to be seeded. It then inserts a newly timestamped event through the configured Access Control connection. Press **Stop** to end generation.
+To generate records, choose **Demo**, set the demo log interval, and apply the settings. The generator prefers the personnel/device references from the newest valid `DeviceLogs` row. If no such row exists, it uses an active Access Control device when available and leaves the optional personnel/device references null otherwise, allowing a new or empty database to be seeded without a working Personnels connection. It then inserts a newly timestamped event through the configured Access Control connection.
 
 ## SQL permissions
 
