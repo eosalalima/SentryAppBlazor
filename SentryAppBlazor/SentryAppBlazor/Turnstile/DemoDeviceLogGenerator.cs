@@ -9,7 +9,7 @@ public sealed class DemoDeviceLogGenerator(
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
 {
-    public static readonly string[] LogTypes = ["IN", "OUT", "BREAK OUT"];
+    public static readonly string[] LogTypes = ["IN", "OUT"];
 
     public static bool ShouldGenerate(MonitoringOptions monitoring) => IsDemoMode(monitoring);
 

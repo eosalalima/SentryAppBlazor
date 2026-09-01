@@ -31,6 +31,13 @@ public sealed class DemoDatabaseInitializer(
                 new Personnel { AccessNumber = "DGL-1002", FirstName = "Alan", LastName = "Turing" },
                 new Personnel { AccessNumber = "DGL-1003", FirstName = "Grace", LastName = "Hopper" });
         }
+        if (!await db.DirectoryPeople.AnyAsync(cancellationToken))
+        {
+            db.DirectoryPeople.AddRange(
+                new DirectoryPerson { Field15 = "DGL-1001", Field02 = "Ada", Field03 = "Lovelace" },
+                new DirectoryPerson { Field15 = "DGL-1002", Field02 = "Alan", Field03 = "Turing" },
+                new DirectoryPerson { Field15 = "DGL-1003", Field02 = "Grace", Field03 = "Hopper" });
+        }
         await db.SaveChangesAsync(cancellationToken);
         logger.LogInformation("Local demo database is ready at {ConnectionString}", connectionString);
     }
