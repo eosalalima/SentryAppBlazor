@@ -161,6 +161,44 @@ public sealed class TurnstileServicesTests
         }
     }
     [Fact]
+    public async Task Device_log_writer_inserts_a_requested_device_log()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-requested-writer-{Guid.NewGuid():N}.db");
+        var accessControlOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite($"Data Source={databasePath}")
+            .Options;
+
+        try
+        {
+            await using (var setup = new DemoDatabaseContext(
+                new DbContextOptionsBuilder<DemoDatabaseContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+            }
+
+            var writer = new DeviceLogWriter(
+                new TestAccessControlDbContextFactory(accessControlOptions),
+                new TestPersonnelsDbContextFactory(new DbContextOptionsBuilder<PersonnelsDbContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options),
+                NullLogger<DeviceLogWriter>.Instance);
+
+            var id = await writer.InsertAsync("PERSON-42", "GATE-7", "IN", "CARD-42", CancellationToken.None);
+
+            await using var verification = new AccessControlDbContext(accessControlOptions);
+            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
+            Assert.Equal("PERSON-42", row.AccessNumber);
+            Assert.Equal("GATE-7", row.DeviceSerialNumber);
+            Assert.Equal("IN", row.LogType);
+            Assert.Equal("CARD-42", row.CardNo);
+            Assert.False(row.IsDeleted);
+        }
+        finally
+        {
+            File.Delete(databasePath);
+        }
+    }
+    [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
     {
         var constructor = Assert.Single(typeof(MonitoringAccessControlDbContextFactory).GetConstructors());

@@ -2,6 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using SentryAppBlazor.Data;
 
 namespace SentryAppBlazor.Turnstile;
+
+public sealed record DeviceLogInsertRequest(
+    string AccessNumber,
+    string DeviceSerialNumber,
+    string LogType,
+    string CardNo);
+
 public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
     IDbContextFactory<PersonnelsDbContext> personnelsFactory,
@@ -46,14 +53,35 @@ public sealed class DeviceLogWriter(
             "TEST", "20", "1", "200", token);
     }
 
-    public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)
-        => await InsertAsync(accessNumber, serial, logType, marker, "20", "1", "200", token);
+    public Task<Guid> InsertAsync(
+        string accessNumber,
+        string serial,
+        string logType,
+        string cardNo,
+        CancellationToken token) =>
+        InsertAsync(accessNumber, serial, logType, cardNo, "20", "1", "200", token);
 
     private async Task<Guid> InsertAsync(string accessNumber, string serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(accessNumber)||string.IsNullOrWhiteSpace(serial)||!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("Valid personnel, device, and log type are required.");
-        await using var db=await factory.CreateDbContextAsync(token);
-        return await InsertAsync(db, accessNumber, serial, logType, cardNo, eventCode, eventAddress, verifyMode, token);
+        if (string.IsNullOrWhiteSpace(accessNumber) ||
+            string.IsNullOrWhiteSpace(serial) ||
+            string.IsNullOrWhiteSpace(cardNo) ||
+            !DemoDeviceLogGenerator.LogTypes.Contains(logType, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Valid personnel, device, card number, and log type are required.");
+        }
+
+        await using var db = await factory.CreateDbContextAsync(token);
+        return await InsertAsync(
+            db,
+            accessNumber,
+            serial,
+            logType.ToUpperInvariant(),
+            cardNo,
+            eventCode,
+            eventAddress,
+            verifyMode,
+            token);
     }
 
     private async Task<Guid> InsertAsync(AccessControlDbContext db, string? accessNumber, string? serial, string logType, string cardNo, string eventCode, string eventAddress, string verifyMode, CancellationToken token)
@@ -71,7 +99,7 @@ public sealed class DeviceLogWriter(
         // new row behind the poller's cursor, making the insert invisible forever.
         if (db.Database.IsSqlServer())
         {
-            await db.Database.ExecuteSqlInterpolatedAsync($@"
+            var affectedRows = await db.Database.ExecuteSqlInterpolatedAsync($@"
 INSERT INTO dbo.DeviceLogs
     (Id, DateCreated, IsDeleted, RecordDate, TimeLogStamp, AccessNumber,
      DeviceSerialNumber, CardNo, SiteCode, LinkId, Event, EventAddress,
@@ -80,6 +108,10 @@ VALUES
     ({id}, {now}, {false}, {now.UtcDateTime.Date},
      {now}, {accessNumber}, {serial}, {cardNo}, NULL, NULL,
      {eventCode}, {eventAddress}, {logType}, {verifyMode}, {0}, NULL, NULL, NULL)", token);
+
+            if (affectedRows != 1)
+                throw new DbUpdateException($"Expected to insert one DeviceLogs row, but inserted {affectedRows}.");
+
             return id;
         }
 

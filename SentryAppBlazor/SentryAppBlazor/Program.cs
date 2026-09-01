@@ -30,5 +30,29 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", createScopeForErrors: true); app.UseHsts(); }
 app.UseHttpsRedirection(); app.UseStaticFiles(); app.UseAntiforgery();
 app.MapGet("/photos/{photoId}", (string photoId, PhotoService photos) => photos.Get(photoId));
+app.MapPost("/api/device-logs", async (
+    DeviceLogInsertRequest request,
+    DeviceLogWriter writer,
+    CancellationToken token) =>
+{
+    try
+    {
+        var id = await writer.InsertAsync(
+            request.AccessNumber,
+            request.DeviceSerialNumber,
+            request.LogType,
+            request.CardNo,
+            token);
+
+        return Results.Created($"/api/device-logs/{id}", new { id });
+    }
+    catch (ArgumentException exception)
+    {
+        return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["deviceLog"] = [exception.Message]
+        });
+    }
+});
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode(); app.Run();
 public partial class Program { }
