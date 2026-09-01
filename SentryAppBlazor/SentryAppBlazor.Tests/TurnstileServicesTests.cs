@@ -105,15 +105,14 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_only_requires_the_access_control_database()
+    public void Demo_writer_uses_access_control_and_personnel_databases()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(2, constructor.GetParameters().Length);
+        Assert.Equal(3, constructor.GetParameters().Length);
         Assert.Equal("factory", constructor.GetParameters()[0].Name);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
-        Assert.DoesNotContain(constructor.GetParameters(), parameter =>
-            parameter.ParameterType == typeof(IDbContextFactory<PersonnelsDbContext>));
+        Assert.Equal(typeof(IDbContextFactory<PersonnelsDbContext>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[2].ParameterType);
     }
     [Fact]
     public async Task Demo_writer_inserts_a_persisted_device_log()
@@ -131,23 +130,30 @@ public sealed class TurnstileServicesTests
             {
                 await setup.Database.EnsureCreatedAsync();
                 setup.ZkDevices.Add(new ZkDevice { SerialNumber = "TEST-GATE", Name = "Test gate" });
-                setup.Personnels.Add(new Personnel { AccessNumber = "TEST-1001", FirstName = "Test" });
+                setup.Personnels.AddRange(
+                    new Personnel { AccessNumber = "TEST-1001", FirstName = "Ada" },
+                    new Personnel { AccessNumber = "TEST-1002", FirstName = "Grace" });
                 await setup.SaveChangesAsync();
             }
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(options),
+                new TestPersonnelsDbContextFactory(new DbContextOptionsBuilder<PersonnelsDbContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options),
                 NullLogger<DeviceLogWriter>.Instance);
 
-            var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+            var firstId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+            var secondId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
 
-            Assert.NotNull(id);
+            Assert.NotNull(firstId);
+            Assert.NotNull(secondId);
             await using var verification = new AccessControlDbContext(options);
-            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
-            Assert.Equal("TEST-1001", row.AccessNumber);
-            Assert.Equal("TEST-GATE", row.DeviceSerialNumber);
-            Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes);
-            Assert.Equal("TEST", row.CardNo);
+            var rows = await verification.DeviceLogs.OrderBy(log => log.TimeLogStamp).ToListAsync();
+            Assert.Equal(2, rows.Count);
+            Assert.NotEqual(rows[0].AccessNumber, rows[1].AccessNumber);
+            Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
+            Assert.All(rows, row => Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes));
+            Assert.All(rows, row => Assert.Equal("TEST", row.CardNo));
         }
         finally
         {
@@ -209,5 +215,10 @@ public sealed class TurnstileServicesTests
         : IDbContextFactory<AccessControlDbContext>
     {
         public AccessControlDbContext CreateDbContext() => new(options);
+    }
+    private sealed class TestPersonnelsDbContextFactory(DbContextOptions<PersonnelsDbContext> options)
+        : IDbContextFactory<PersonnelsDbContext>
+    {
+        public PersonnelsDbContext CreateDbContext() => new(options);
     }
 }
