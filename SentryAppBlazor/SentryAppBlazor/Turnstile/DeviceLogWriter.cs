@@ -119,30 +119,15 @@ public sealed class DeviceLogWriter(
         var now = DateTimeOffset.Now;
 
         // DeviceLogs is an existing Access Control table rather than a schema
-        // managed by this application.  Write every production column
-        // explicitly so SQL Server defaults, missing defaults, and EF's value
-        // generation conventions cannot turn demo generation into a no-op.
+        // managed by this application. Set every mapped value explicitly, but let
+        // EF build the INSERT. The previous SQL Server-only command hard-coded the
+        // complete column list; deployments whose DeviceLogs schema predates one
+        // of the optional columns rejected the whole insert with "invalid column".
+        // EF uses the configured model and keeps the write path identical for the
+        // production and demo providers.
         // Use the application clock for the inserted event as well as the poller.
         // A SQL Server clock behind the web server would otherwise place a brand
         // new row behind the poller's cursor, making the insert invisible forever.
-        if (db.Database.IsSqlServer())
-        {
-            var affectedRows = await db.Database.ExecuteSqlInterpolatedAsync($@"
-INSERT INTO dbo.DeviceLogs
-    (Id, DateCreated, IsDeleted, RecordDate, TimeLogStamp, AccessNumber,
-     DeviceSerialNumber, CardNo, SiteCode, LinkId, Event, EventAddress,
-     LogType, VerifyMode, [Index], HasMask, Temperature, IsNotified)
-VALUES
-    ({id}, {now}, {false}, {now.DateTime},
-     {now}, {accessNumber}, {serial}, {cardNo}, NULL, NULL,
-     {eventCode}, {eventAddress}, {logType}, {verifyMode}, {0}, NULL, NULL, NULL)", token);
-
-            if (affectedRows != 1)
-                throw new DbUpdateException($"Expected to insert one DeviceLogs row, but inserted {affectedRows}.");
-
-            return id;
-        }
-
         var row = new DeviceLog
         {
             Id = id, DateCreated = now, IsDeleted = false, RecordDate = now.DateTime,
