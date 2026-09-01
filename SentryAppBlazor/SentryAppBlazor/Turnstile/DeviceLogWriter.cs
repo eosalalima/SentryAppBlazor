@@ -23,18 +23,8 @@ public sealed class DeviceLogWriter(
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
-        await using var staff = await staffFactory.CreateDbContextAsync(token);
-        await using var students = await studentFactory.CreateDbContextAsync(token);
-
-        var staffAccessNumbers = await staff.People.AsNoTracking()
-            .Where(x => x.Field15 != "")
-            .Select(x => x.Field15)
-            .ToListAsync(token);
-        var studentAccessNumbers = await students.People.AsNoTracking()
-            .Where(x => x.Field15 != "")
-            .Select(x => x.Field15)
-            .ToListAsync(token);
-        var accessNumbers = staffAccessNumbers.Concat(studentAccessNumbers)
+        var accessNumbers = (await ReadAccessNumbersAsync(staffFactory, "STAFF", token))
+            .Concat(await ReadAccessNumbersAsync(studentFactory, "STUDENT", token))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
@@ -45,21 +35,17 @@ public sealed class DeviceLogWriter(
             .Select(x => x.SerialNumber)
             .ToListAsync(token);
 
-        if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
-        {
-            logger.LogWarning("Cannot insert a demo DeviceLogs record because STAFF/STUDENT MyDataTable has no Field15 value or ZKDevices has no active serial number");
-            return null;
-        }
-
-        // Do not clone the most recent DeviceLogs row: doing so permanently shows
-        // the same person. Choose from the STAFF/STUDENT union and, when possible,
-        // avoid repeating the person selected by the preceding demo insert.
+        // Directory databases are enrichment sources, not a prerequisite for a
+        // DeviceLogs insert.  A missing/unavailable STAFF or STUDENT database used
+        // to make the generator silently produce no row at all.  Preserve nulls
+        // when source data is unavailable; those columns are optional in the
+        // Access Control schema and the event itself must still be persisted.
         var choices = accessNumbers.Count > 1
             ? accessNumbers.Where(x => x != previousDemoAccessNumber).ToList()
             : accessNumbers;
-        var accessNumber = choices[random.Next(choices.Count)];
+        var accessNumber = choices.Count == 0 ? null : choices[random.Next(choices.Count)];
         previousDemoAccessNumber = accessNumber;
-        var serialNumber = serialNumbers[random.Next(serialNumbers.Count)];
+        var serialNumber = serialNumbers.Count == 0 ? null : serialNumbers[random.Next(serialNumbers.Count)];
 
         return await InsertAsync(db, accessNumber, serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
@@ -67,6 +53,32 @@ public sealed class DeviceLogWriter(
             EventCodes[random.Next(EventCodes.Length)],
             EventAddresses[random.Next(EventAddresses.Length)],
             VerifyModes[random.Next(VerifyModes.Length)], token);
+    }
+
+    private async Task<List<string>> ReadAccessNumbersAsync<TContext>(
+        IDbContextFactory<TContext> contextFactory,
+        string source,
+        CancellationToken token) where TContext : DirectoryDbContext
+    {
+        try
+        {
+            await using var context = await contextFactory.CreateDbContextAsync(token);
+            return await context.People.AsNoTracking()
+                .Where(x => x.Field15 != "")
+                .Select(x => x.Field15)
+                .ToListAsync(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Unable to read {DirectorySource}; inserting the DeviceLogs record without that optional directory data",
+                source);
+            return [];
+        }
     }
 
     public Task<Guid> InsertAsync(
