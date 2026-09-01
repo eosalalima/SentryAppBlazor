@@ -4,38 +4,46 @@ using SentryAppBlazor.Data;
 namespace SentryAppBlazor.Turnstile;
 public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
+    IDbContextFactory<PersonnelsDbContext> personnelsFactory,
     ILogger<DeviceLogWriter> logger)
 {
+    private string? previousDemoAccessNumber;
+
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
-        var source = await db.DeviceLogs.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "" &&
-                        x.DeviceSerialNumber != null && x.DeviceSerialNumber != "")
-            .OrderByDescending(x => x.TimeLogStamp).ThenByDescending(x => x.Id)
-            .Select(x => new DemoLogSource { AccessNumber = x.AccessNumber, DeviceSerialNumber = x.DeviceSerialNumber })
-            .FirstOrDefaultAsync(token);
+        await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
 
-        if (source is null)
+        var accessNumbers = await personnels.Personnels.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.AccessNumber != "")
+            .OrderBy(x => x.AccessNumber)
+            .Select(x => x.AccessNumber)
+            .ToListAsync(token);
+        var serialNumbers = await db.ZkDevices.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.SerialNumber != "")
+            .OrderBy(x => x.SerialNumber)
+            .Select(x => x.SerialNumber)
+            .ToListAsync(token);
+
+        if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
         {
-            var personnel = db.Database.IsSqlite()
-                ? await db.Set<Personnel>().AsNoTracking().OrderBy(x => x.AccessNumber)
-                    .Select(x => x.AccessNumber).FirstOrDefaultAsync(token)
-                : null;
-            var serial = await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted).OrderBy(x => x.SerialNumber)
-                .Select(x => x.SerialNumber).FirstOrDefaultAsync(token);
-            source = new DemoLogSource { AccessNumber = personnel, DeviceSerialNumber = serial };
+            logger.LogWarning("Cannot insert a demo DeviceLogs record because no active personnel or device exists");
+            return null;
         }
 
-        return await InsertAsync(db, source.AccessNumber, source.DeviceSerialNumber,
+        // Do not clone the most recent DeviceLogs row: doing so permanently shows
+        // the same person. Choose from the personnel table and, when possible,
+        // avoid repeating the person selected by the preceding demo insert.
+        var choices = accessNumbers.Count > 1
+            ? accessNumbers.Where(x => x != previousDemoAccessNumber).ToList()
+            : accessNumbers;
+        var accessNumber = choices[random.Next(choices.Count)];
+        previousDemoAccessNumber = accessNumber;
+        var serialNumber = serialNumbers[random.Next(serialNumbers.Count)];
+
+        return await InsertAsync(db, accessNumber, serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
             "TEST", "20", "1", "200", token);
-    }
-
-    private sealed class DemoLogSource
-    {
-        public string? AccessNumber { get; set; }
-        public string? DeviceSerialNumber { get; set; }
     }
 
     public async Task<Guid> InsertAsync(string accessNumber,string serial,string logType,string marker,CancellationToken token)
@@ -52,13 +60,15 @@ public sealed class DeviceLogWriter(
     {
         if (!DemoDeviceLogGenerator.LogTypes.Contains(logType)) throw new ArgumentException("A valid log type is required.", nameof(logType));
         var id = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
 
         // DeviceLogs is an existing Access Control table rather than a schema
         // managed by this application.  Write every production column
         // explicitly so SQL Server defaults, missing defaults, and EF's value
         // generation conventions cannot turn demo generation into a no-op.
-        // The database clock also keeps the new row ahead of the poller's
-        // timestamp cursor when the web server and SQL Server clocks differ.
+        // Use the application clock for the inserted event as well as the poller.
+        // A SQL Server clock behind the web server would otherwise place a brand
+        // new row behind the poller's cursor, making the insert invisible forever.
         if (db.Database.IsSqlServer())
         {
             await db.Database.ExecuteSqlInterpolatedAsync($@"
@@ -67,13 +77,12 @@ INSERT INTO dbo.DeviceLogs
      DeviceSerialNumber, CardNo, SiteCode, LinkId, Event, EventAddress,
      LogType, VerifyMode, [Index], HasMask, Temperature, IsNotified)
 VALUES
-    ({id}, SYSDATETIMEOFFSET(), {false}, CONVERT(date, SYSDATETIMEOFFSET()),
-     SYSDATETIMEOFFSET(), {accessNumber}, {serial}, {cardNo}, NULL, NULL,
+    ({id}, {now}, {false}, {now.UtcDateTime.Date},
+     {now}, {accessNumber}, {serial}, {cardNo}, NULL, NULL,
      {eventCode}, {eventAddress}, {logType}, {verifyMode}, {0}, NULL, NULL, NULL)", token);
             return id;
         }
 
-        var now = DateTimeOffset.UtcNow;
         var row = new DeviceLog
         {
             Id = id, DateCreated = now, RecordDate = now.UtcDateTime.Date,
