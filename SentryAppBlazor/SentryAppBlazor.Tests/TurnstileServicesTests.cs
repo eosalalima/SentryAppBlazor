@@ -211,6 +211,49 @@ public sealed class TurnstileServicesTests
         }
     }
     [Fact]
+    public async Task Demo_writer_still_inserts_when_directory_databases_are_unavailable()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
+        var missingDirectoryPath = Path.Combine(Path.GetTempPath(), $"sentry-missing-directory-{Guid.NewGuid():N}.db");
+        var accessControlOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite($"Data Source={databasePath}").Options;
+
+        try
+        {
+            await using (var setup = new DemoDatabaseContext(
+                new DbContextOptionsBuilder<DemoDatabaseContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                setup.ZkDevices.Add(new ZkDevice { SerialNumber = "REAL-GATE" });
+                await setup.SaveChangesAsync();
+            }
+
+            var missingStaffOptions = new DbContextOptionsBuilder<StaffDbContext>()
+                .UseSqlite($"Data Source={missingDirectoryPath}").Options;
+            var missingStudentOptions = new DbContextOptionsBuilder<StudentDbContext>()
+                .UseSqlite($"Data Source={missingDirectoryPath}").Options;
+            var writer = new DeviceLogWriter(
+                new TestAccessControlDbContextFactory(accessControlOptions),
+                new TestStaffDbContextFactory(missingStaffOptions),
+                new TestStudentDbContextFactory(missingStudentOptions),
+                NullLogger<DeviceLogWriter>.Instance);
+
+            var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+
+            Assert.NotNull(id);
+            await using var verification = new AccessControlDbContext(accessControlOptions);
+            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
+            Assert.Null(row.AccessNumber);
+            Assert.Equal("REAL-GATE", row.DeviceSerialNumber);
+        }
+        finally
+        {
+            File.Delete(databasePath);
+            File.Delete(missingDirectoryPath);
+        }
+    }
+    [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
     {
         var constructor = Assert.Single(typeof(MonitoringAccessControlDbContextFactory).GetConstructors());
