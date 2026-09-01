@@ -211,6 +211,22 @@ public sealed class TurnstileServicesTests
         }
     }
     [Fact]
+    public void Access_control_device_log_model_omits_optional_schema_extensions()
+    {
+        var options = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite("Data Source=:memory:")
+            .Options;
+        using var context = new AccessControlDbContext(options);
+        var deviceLog = context.Model.FindEntityType(typeof(DeviceLog));
+
+        Assert.NotNull(deviceLog);
+        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.SiteCode)));
+        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.LinkId)));
+        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.HasMask)));
+        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.Temperature)));
+        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.IsNotified)));
+    }
+    [Fact]
     public async Task Demo_writer_still_inserts_when_directory_databases_are_unavailable()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
