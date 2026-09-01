@@ -43,7 +43,7 @@ public sealed class TurnstileServicesTests
     [Fact] public void Feed_can_filter_by_device() { var s=new TurnstileLogState(); Assert.Empty(s.Filter("other-device")); }
     [Theory] [InlineData(null,"/img/avatar-placeholder.svg")] [InlineData("","/img/avatar-placeholder.svg")] [InlineData("../secret.jpg","/img/avatar-placeholder.svg")] [InlineData("person.jpg","/photos/person.jpg")]
     public void Photo_urls_are_safe(string? value,string expected)=>Assert.Equal(expected,new PhotoUrlBuilder().Build(value));
-    [Theory] [InlineData("IN")] [InlineData("OUT")] [InlineData("BREAK OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
+    [Theory] [InlineData("IN")] [InlineData("OUT")] public void Generator_only_defines_allowed_log_types(string value)=>Assert.Contains(value,DemoDeviceLogGenerator.LogTypes);
     [Theory]
     [InlineData("Demo", true)]
     [InlineData("demo", true)]
@@ -105,14 +105,15 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_uses_access_control_and_personnel_databases()
+    public void Demo_writer_uses_access_control_staff_and_student_databases()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(3, constructor.GetParameters().Length);
-        Assert.Equal("factory", constructor.GetParameters()[0].Name);
-        Assert.Equal(typeof(IDbContextFactory<PersonnelsDbContext>), constructor.GetParameters()[1].ParameterType);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[2].ParameterType);
+        Assert.Equal(4, constructor.GetParameters().Length);
+        Assert.Equal(typeof(IDbContextFactory<AccessControlDbContext>), constructor.GetParameters()[0].ParameterType);
+        Assert.Equal(typeof(IDbContextFactory<StaffDbContext>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(IDbContextFactory<StudentDbContext>), constructor.GetParameters()[2].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[3].ParameterType);
     }
     [Fact]
     public async Task Demo_writer_inserts_a_persisted_device_log()
@@ -133,12 +134,17 @@ public sealed class TurnstileServicesTests
                 setup.Personnels.AddRange(
                     new Personnel { AccessNumber = "TEST-1001", FirstName = "Ada" },
                     new Personnel { AccessNumber = "TEST-1002", FirstName = "Grace" });
+                setup.DirectoryPeople.AddRange(
+                    new DirectoryPerson { Field15 = "TEST-1001", Field02 = "Ada" },
+                    new DirectoryPerson { Field15 = "TEST-1002", Field02 = "Grace" });
                 await setup.SaveChangesAsync();
             }
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(options),
-                new TestPersonnelsDbContextFactory(new DbContextOptionsBuilder<PersonnelsDbContext>()
+                new TestStaffDbContextFactory(new DbContextOptionsBuilder<StaffDbContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options),
+                new TestStudentDbContextFactory(new DbContextOptionsBuilder<StudentDbContext>()
                     .UseSqlite($"Data Source={databasePath}").Options),
                 NullLogger<DeviceLogWriter>.Instance);
 
@@ -153,7 +159,11 @@ public sealed class TurnstileServicesTests
             Assert.NotEqual(rows[0].AccessNumber, rows[1].AccessNumber);
             Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
             Assert.All(rows, row => Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes));
-            Assert.All(rows, row => Assert.Equal("TEST", row.CardNo));
+            Assert.All(rows, row => Assert.Equal("Test", row.CardNo));
+            Assert.All(rows, row => Assert.Contains(row.Event, DeviceLogWriter.EventCodes));
+            Assert.All(rows, row => Assert.Contains(row.EventAddress, DeviceLogWriter.EventAddresses));
+            Assert.All(rows, row => Assert.Contains(row.VerifyMode, DeviceLogWriter.VerifyModes));
+            Assert.All(rows, row => Assert.Equal(0, row.Index));
         }
         finally
         {
@@ -179,7 +189,9 @@ public sealed class TurnstileServicesTests
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(accessControlOptions),
-                new TestPersonnelsDbContextFactory(new DbContextOptionsBuilder<PersonnelsDbContext>()
+                new TestStaffDbContextFactory(new DbContextOptionsBuilder<StaffDbContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options),
+                new TestStudentDbContextFactory(new DbContextOptionsBuilder<StudentDbContext>()
                     .UseSqlite($"Data Source={databasePath}").Options),
                 NullLogger<DeviceLogWriter>.Instance);
 
@@ -254,9 +266,14 @@ public sealed class TurnstileServicesTests
     {
         public AccessControlDbContext CreateDbContext() => new(options);
     }
-    private sealed class TestPersonnelsDbContextFactory(DbContextOptions<PersonnelsDbContext> options)
-        : IDbContextFactory<PersonnelsDbContext>
+    private sealed class TestStaffDbContextFactory(DbContextOptions<StaffDbContext> options)
+        : IDbContextFactory<StaffDbContext>
     {
-        public PersonnelsDbContext CreateDbContext() => new(options);
+        public StaffDbContext CreateDbContext() => new(options);
+    }
+    private sealed class TestStudentDbContextFactory(DbContextOptions<StudentDbContext> options)
+        : IDbContextFactory<StudentDbContext>
+    {
+        public StudentDbContext CreateDbContext() => new(options);
     }
 }
