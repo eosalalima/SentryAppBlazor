@@ -105,13 +105,15 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_only_requires_the_access_control_database()
+    public void Demo_writer_uses_all_configured_source_databases()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(2, constructor.GetParameters().Length);
+        Assert.Equal(4, constructor.GetParameters().Length);
         Assert.Equal(typeof(IDbContextFactory<AccessControlDbContext>), constructor.GetParameters()[0].ParameterType);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(IDbContextFactory<StaffDbContext>), constructor.GetParameters()[1].ParameterType);
+        Assert.Equal(typeof(IDbContextFactory<StudentDbContext>), constructor.GetParameters()[2].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[3].ParameterType);
     }
     [Fact]
     public async Task Demo_writer_inserts_a_persisted_device_log()
@@ -134,6 +136,8 @@ public sealed class TurnstileServicesTests
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(options),
+                new FailingDirectoryDbContextFactory<StaffDbContext>(),
+                new FailingDirectoryDbContextFactory<StudentDbContext>(),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var firstId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
@@ -177,6 +181,8 @@ public sealed class TurnstileServicesTests
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(accessControlOptions),
+                new FailingDirectoryDbContextFactory<StaffDbContext>(),
+                new FailingDirectoryDbContextFactory<StudentDbContext>(),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var id = await writer.InsertAsync("PERSON-42", "GATE-7", "IN", "CARD-42", CancellationToken.None);
@@ -230,6 +236,8 @@ public sealed class TurnstileServicesTests
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(accessControlOptions),
+                new FailingDirectoryDbContextFactory<StaffDbContext>(),
+                new FailingDirectoryDbContextFactory<StudentDbContext>(),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
@@ -300,5 +308,11 @@ public sealed class TurnstileServicesTests
         : IDbContextFactory<AccessControlDbContext>
     {
         public AccessControlDbContext CreateDbContext() => new(options);
+    }
+
+    private sealed class FailingDirectoryDbContextFactory<TContext> : IDbContextFactory<TContext>
+        where TContext : DbContext
+    {
+        public TContext CreateDbContext() => throw new InvalidOperationException("Directory unavailable in this test.");
     }
 }
