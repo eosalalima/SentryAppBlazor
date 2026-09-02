@@ -2,7 +2,7 @@
 
 The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWorker` creates a fresh Access Control context per cycle, performs the ordered left-join query with a `(TimeLogStamp, Id)` watermark, enriches each result using independent STAFF and STUDENT contexts, attempts the replaceable SMS transport, and publishes the event even when lookup or delivery fails. The feed and recently-seen-ID cache are bounded and thread safe.
 
-`DemoDeviceLogGenerator` is a separate hosted service. While Demo mode is selected, it creates clearly marked sample records directly in Access Control `dbo.DeviceLogs`, once immediately and then at the configured interval. It does not depend on the monitor page or create an in-memory substitute for a database record.
+`DemoDeviceLogGenerator` is a hosted service controlled by the monitor Start/Stop control. When monitoring is started while Demo mode is selected, it creates a clearly marked sample record directly in Access Control `dbo.DeviceLogs` immediately and then at the configured interval. It does not create an in-memory substitute for a database record.
 
 ## Configuration and demo operation
 
@@ -10,7 +10,7 @@ Supply secrets with user-secrets, a secret store, or environment variables (`Con
 
 To generate records, choose **Demo**, set the demo log interval, and apply the settings. The generator builds its personnel pool from the configured STAFF and STUDENT directory databases, then adds access numbers from the 100 newest valid `DeviceLogs` rows as a fallback. It chooses an active device from Access Control when available. Directory, existing-log, and device discovery queries are optional: if any source is empty or unavailable, the generator leaves the corresponding nullable reference unset and still attempts the insert through a fresh Access Control context. This isolation prevents a failed lookup from poisoning the write context.
 
-Each generated row receives a new GUID and application-server timestamp, an `IN` or `OUT` log type, the `Test` card marker, and values from the supported event, address, and verification-mode sets. The hosted generator starts independently of the Blazor UI, writes one row immediately after Demo mode is observed, and waits at least one second between subsequent inserts. Switching away from Demo mode stops inserts without stopping the polling worker.
+Each generated row receives a new GUID and application-server timestamp, an `IN` or `OUT` log type, the `Test` card marker, and values from the supported event, address, and verification-mode sets. The hosted generator writes one row immediately for each monitoring Start in Demo mode and waits at least one second between subsequent inserts. Stop or switching away from Demo mode stops inserts.
 
 The same write service is exposed for explicit records at `POST /api/device-logs`. Supply `accessNumber`, `deviceSerialNumber`, `logType` (`IN` or `OUT`), and `cardNo`; a successful request returns `201 Created` with the new row ID. Validation failures return `400`, while database failures remain server errors and are logged by the host.
 

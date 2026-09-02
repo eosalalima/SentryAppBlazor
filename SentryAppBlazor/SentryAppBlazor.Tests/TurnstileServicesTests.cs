@@ -11,6 +11,19 @@ public sealed class TurnstileServicesTests
 {
     [Fact] public void Polling_controller_starts_and_stops() { var c=new TurnstilePollingController(); Assert.False(c.IsActive); c.Start(); Assert.True(c.IsActive); c.Stop(); Assert.False(c.IsActive); }
     [Fact] public void Polling_controller_is_idempotent_and_only_notifies_changes() { var c=new TurnstilePollingController(); var statuses=new List<bool>(); c.StatusChanged += statuses.Add; Assert.True(c.TryStart()); Assert.False(c.TryStart()); Assert.True(c.TryStop()); Assert.False(c.TryStop()); Assert.Equal([true,false], statuses); }
+    [Fact]
+    public void Polling_controller_assigns_each_start_a_new_session()
+    {
+        var controller = new TurnstilePollingController();
+
+        controller.Start();
+        var firstSession = controller.ActiveSession;
+        controller.Stop();
+        controller.Start();
+
+        Assert.True(firstSession > 0);
+        Assert.True(controller.ActiveSession > firstSession);
+    }
     [Fact] public async Task Polling_controller_wait_is_cancellable() { var c=new TurnstilePollingController(); using var cancel=new CancellationTokenSource(); cancel.Cancel(); await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>c.WaitUntilActiveAsync(cancel.Token)); }
     [Fact]
     public async Task Polling_controller_start_releases_all_waiting_workers()
@@ -78,17 +91,7 @@ public sealed class TurnstileServicesTests
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
-    }
-    [Fact]
-    public void Generator_does_not_have_an_automatic_monitoring_start_path()
-    {
-        Assert.DoesNotContain(
-            typeof(DemoDeviceLogGenerator).GetMethods(
-                System.Reflection.BindingFlags.Static |
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.NonPublic),
-            method => method.Name.Contains("StartMonitoring", StringComparison.Ordinal));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
     }
     [Fact]
     public void Poller_reads_persisted_runtime_settings()

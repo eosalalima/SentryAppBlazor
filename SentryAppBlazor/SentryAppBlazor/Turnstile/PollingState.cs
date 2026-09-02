@@ -5,9 +5,11 @@ public sealed class TurnstilePollingController
 {
     private readonly object gate = new();
     private volatile bool active;
+    private long activeSession;
     private TaskCompletionSource activeSignal = CreateSignal();
 
     public bool IsActive => active;
+    public long ActiveSession => Interlocked.Read(ref activeSession);
     public event Action<bool>? StatusChanged;
 
     public bool TryStart()
@@ -17,6 +19,7 @@ public sealed class TurnstilePollingController
         {
             if (active) return false;
             active = true;
+            Interlocked.Increment(ref activeSession);
             activeSignal.TrySetResult();
             changed = StatusChanged;
         }
