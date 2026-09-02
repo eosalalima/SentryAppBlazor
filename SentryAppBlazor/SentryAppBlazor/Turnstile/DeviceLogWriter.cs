@@ -11,6 +11,8 @@ public sealed record DeviceLogInsertRequest(
 
 public sealed class DeviceLogWriter(
     IDbContextFactory<AccessControlDbContext> factory,
+    IDbContextFactory<StaffDbContext> staffFactory,
+    IDbContextFactory<StudentDbContext> studentFactory,
     ILogger<DeviceLogWriter> logger)
 {
     internal static readonly string[] EventCodes = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
@@ -21,17 +23,22 @@ public sealed class DeviceLogWriter(
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
         await using var db = await factory.CreateDbContextAsync(token);
-        // Demo generation must only depend on the Access Control connection that
-        // receives the row. Requiring optional directory connections delayed or
-        // prevented INSERTs when only this connection had been configured.
         var recentAccessNumbers = await db.DeviceLogs.AsNoTracking()
             .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "")
             .OrderByDescending(x => x.TimeLogStamp)
             .Select(x => x.AccessNumber!)
             .Take(100)
             .ToListAsync(token);
-        var accessNumbers = recentAccessNumbers
+        // Use the directory databases configured in Monitoring Settings as the
+        // authoritative source of demo personnel. Existing access-control logs
+        // remain a fallback for installations where a directory is temporarily
+        // unavailable or has no records yet.
+        var accessNumbers = (await ReadAccessNumbersAsync(staffFactory, "STAFF", token))
+            .Concat(await ReadAccessNumbersAsync(studentFactory, "STUDENT", token))
+            .Concat(recentAccessNumbers)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var serialNumbers = await db.ZkDevices.AsNoTracking()
             .Where(x => !x.IsDeleted && x.SerialNumber != "")
@@ -54,6 +61,32 @@ public sealed class DeviceLogWriter(
             EventCodes[random.Next(EventCodes.Length)],
             EventAddresses[random.Next(EventAddresses.Length)],
             VerifyModes[random.Next(VerifyModes.Length)], token);
+    }
+
+    private async Task<List<string>> ReadAccessNumbersAsync<TContext>(
+        IDbContextFactory<TContext> contextFactory,
+        string source,
+        CancellationToken token) where TContext : DirectoryDbContext
+    {
+        try
+        {
+            await using var context = await contextFactory.CreateDbContextAsync(token);
+            return await context.People.AsNoTracking()
+                .Where(x => x.Field15 != "")
+                .Select(x => x.Field15)
+                .ToListAsync(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Unable to read configured {DirectorySource} database; falling back to existing DeviceLogs personnel",
+                source);
+            return [];
+        }
     }
 
     public Task<Guid> InsertAsync(
