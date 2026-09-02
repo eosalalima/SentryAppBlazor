@@ -18,6 +18,6 @@ Use separate least-privilege identities where possible. Monitoring needs `SELECT
 
 Install the .NET 10 SDK, then run `dotnet restore SentryAppBlazor/SentryAppBlazor.slnx`, `dotnet format SentryAppBlazor/SentryAppBlazor.slnx --verify-no-changes`, `dotnet build SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-restore`, and `dotnet test SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-build`. Start with `dotnet run --project SentryAppBlazor/SentryAppBlazor/SentryAppBlazor.csproj`. SQL transient errors are logged and retried on later hosted-service cycles; cancellation is propagated through delays, EF calls, and SMS calls.
 
-## Turnkey database-backed demo
+## Database-backed demo
 
-A fresh checkout now starts in Demo mode with all four logical connections pointing at `sentry-demo.db`. At startup the application creates a persistent SQLite schema and seeds a gate plus three sample personnel. The hosted generator writes real `DeviceLogs` rows, and the normal polling and personnel-enrichment pipeline reads those same rows; no in-memory event substitute is used. Change the settings to SQL Server connection strings and Live mode for production data.
+A fresh checkout does not create or seed a local database. Demo mode uses the connection strings saved in Monitoring Settings and writes generated records directly to the configured Access Control `dbo.DeviceLogs` table; it never replaces those settings with a local connection.
