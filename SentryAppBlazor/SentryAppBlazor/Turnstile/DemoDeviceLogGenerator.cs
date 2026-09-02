@@ -5,7 +5,6 @@ namespace SentryAppBlazor.Turnstile;
 public sealed class DemoDeviceLogGenerator(
     DeviceLogWriter writer,
     MonitoringSettingsStore settings,
-    TurnstilePollingController controller,
     TimeProvider time,
     Random random,
     ILogger<DemoDeviceLogGenerator> logger) : BackgroundService
@@ -23,14 +22,6 @@ public sealed class DemoDeviceLogGenerator(
         {
             try
             {
-                // "Start" controls the complete monitoring pipeline.  Do not
-                // generate database rows merely because the application is
-                // running with Demo selected in sentryconfig.json.
-                await controller.WaitUntilActiveAsync(token);
-                if (!controller.IsActive)
-                    continue;
-                var activeSession = controller.ActiveSession;
-
                 var monitoring = settings.Current;
 
                 if (!ShouldGenerate(monitoring))
@@ -41,13 +32,14 @@ public sealed class DemoDeviceLogGenerator(
 
                 // The writer's AccessControlDbContext factory resolves the
                 // AccessControlDb value from sentryconfig.json for every insert.
-                // Starting in Demo therefore creates a real DeviceLogs row in the
-                // configured database immediately, not in a local demo database.
+                // Demo mode is the explicit opt-in for database generation. It
+                // creates a real row as soon as the hosted service starts; the
+                // monitor page's Start/Stop button only controls reading/display.
                 var logId = await writer.InsertDemoAsync(random, token);
                 if (logId.HasValue)
                     logger.LogInformation("Inserted demo turnstile event {LogId} into DeviceLogs", logId.Value);
 
-                await WaitForNextInsertAsync(GetDelay(monitoring), activeSession, token);
+                await Task.Delay(GetDelay(monitoring), time, token);
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -63,22 +55,5 @@ public sealed class DemoDeviceLogGenerator(
 
     internal static TimeSpan GetDelay(MonitoringOptions monitoring) =>
         TimeSpan.FromSeconds(Math.Max(1, monitoring.DemoLogIntervalSeconds));
-
-    private async Task WaitForNextInsertAsync(
-        TimeSpan delay,
-        long activeSession,
-        CancellationToken token)
-    {
-        var remaining = delay;
-        while (remaining > TimeSpan.Zero && controller.IsActive &&
-               controller.ActiveSession == activeSession && IsDemoMode(settings.Current))
-        {
-            var slice = remaining > TimeSpan.FromSeconds(1)
-                ? TimeSpan.FromSeconds(1)
-                : remaining;
-            await Task.Delay(slice, time, token);
-            remaining -= slice;
-        }
-    }
 
 }

@@ -91,7 +91,7 @@ public sealed class TurnstileServicesTests
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
-        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
     }
     [Fact]
     public void Poller_reads_persisted_runtime_settings()
