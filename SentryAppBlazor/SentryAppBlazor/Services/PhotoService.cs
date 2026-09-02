@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Options;
-
 namespace SentryAppBlazor.Services;
 
-public sealed class PhotoService(IOptions<MonitoringOptions> options, IWebHostEnvironment environment, ILogger<PhotoService> logger)
+public sealed class PhotoService(MonitoringSettingsStore settings, IWebHostEnvironment environment, ILogger<PhotoService> logger)
 {
     public IResult Get(string photoId)
     {
@@ -13,7 +11,9 @@ public sealed class PhotoService(IOptions<MonitoringOptions> options, IWebHostEn
 
         try
         {
-            var root = Path.GetFullPath(options.Value.PhotosPath);
+            // Read persisted settings for every request so changing the protected
+            // photo directory through the Settings page takes effect immediately.
+            var root = Path.GetFullPath(settings.Current.PhotosPath);
             var path = Path.GetFullPath(Path.Combine(root, safeId + ".jpg"));
             if (path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) && File.Exists(path))
                 return Results.File(path, "image/jpeg", enableRangeProcessing: true);

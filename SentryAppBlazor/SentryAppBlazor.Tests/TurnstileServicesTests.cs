@@ -359,6 +359,16 @@ public sealed class TurnstileServicesTests
         Assert.Contains(constructor.GetParameters(), parameter =>
             parameter.ParameterType == typeof(IDbContextFactory<PersonnelsDbContext>));
     }
+    [Fact]
+    public void Photo_service_reads_runtime_monitoring_settings()
+    {
+        var constructor = Assert.Single(typeof(PhotoService).GetConstructors());
+
+        Assert.Contains(constructor.GetParameters(), parameter =>
+            parameter.ParameterType == typeof(MonitoringSettingsStore));
+        Assert.DoesNotContain(constructor.GetParameters(), parameter =>
+            parameter.ParameterType == typeof(Microsoft.Extensions.Options.IOptions<MonitoringOptions>));
+    }
     [Fact] public void Sms_result_preserves_failure() { var result=new SmsSendResult(false,"timeout");Assert.False(result.Success);Assert.Equal("timeout",result.Message); }
     [Theory] [InlineData(null,null,"UNKNOWN")] [InlineData(" Ada ",null,"Ada")] [InlineData(null,"Lovelace","Lovelace")] [InlineData("Ada","Lovelace","LOVELACE, Ada")]
     public void Personnel_names_follow_display_rules(string? first,string? last,string expected)=>Assert.Equal(expected,TurnstileLogPollingWorker.FormatPersonnelName(first,last));
