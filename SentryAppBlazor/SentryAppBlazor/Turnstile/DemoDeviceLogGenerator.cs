@@ -14,7 +14,7 @@ public sealed class DemoDeviceLogGenerator(
     public static bool ShouldGenerate(MonitoringOptions monitoring) => IsDemoMode(monitoring);
 
     public static bool IsDemoMode(MonitoringOptions monitoring) =>
-        monitoring.OperatingMode.Equals("Demo", StringComparison.OrdinalIgnoreCase);
+        string.Equals(monitoring.OperatingMode, "Demo", StringComparison.OrdinalIgnoreCase);
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {
