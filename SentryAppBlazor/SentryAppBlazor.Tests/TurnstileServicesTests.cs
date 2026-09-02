@@ -57,10 +57,11 @@ public sealed class TurnstileServicesTests
     [InlineData("Demo", true)]
     [InlineData("demo", true)]
     [InlineData("Live", false)]
-    public void Generator_is_enabled_only_in_demo_mode(string mode, bool expected)
+    [InlineData(null, false)]
+    public void Generator_is_enabled_only_in_demo_mode(string? mode, bool expected)
     {
         Assert.Equal(expected, DemoDeviceLogGenerator.IsDemoMode(
-            new MonitoringOptions { OperatingMode=mode }));
+            new MonitoringOptions { OperatingMode=mode! }));
     }
     [Fact]
     public void Generator_uses_the_configured_demo_interval()
@@ -160,6 +161,45 @@ public sealed class TurnstileServicesTests
         finally
         {
             File.Delete(databasePath);
+        }
+    }
+    [Fact]
+    public async Task Demo_writer_uses_the_combined_staff_and_student_directories_without_repeating_people()
+    {
+        var accessControlPath = Path.Combine(Path.GetTempPath(), $"sentry-access-{Guid.NewGuid():N}.db");
+        var staffPath = Path.Combine(Path.GetTempPath(), $"sentry-staff-{Guid.NewGuid():N}.db");
+        var studentPath = Path.Combine(Path.GetTempPath(), $"sentry-student-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            await CreateAccessControlDatabaseAsync(accessControlPath, "TEST-GATE");
+            await CreateDirectoryDatabaseAsync(CreateStaffContext(staffPath), "STAFF-1");
+            await CreateDirectoryDatabaseAsync(CreateStudentContext(studentPath), "STUDENT-1");
+
+            var accessControlOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
+                .UseSqlite($"Data Source={accessControlPath}").Options;
+            var writer = new DeviceLogWriter(
+                new TestAccessControlDbContextFactory(accessControlOptions),
+                new TestDirectoryDbContextFactory<StaffDbContext>(() => CreateStaffContext(staffPath)),
+                new TestDirectoryDbContextFactory<StudentDbContext>(() => CreateStudentContext(studentPath)),
+                NullLogger<DeviceLogWriter>.Instance);
+
+            await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+            await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+
+            await using var verification = new AccessControlDbContext(accessControlOptions);
+            var rows = await verification.DeviceLogs.OrderBy(log => log.TimeLogStamp).ToListAsync();
+            Assert.Equal(2, rows.Count);
+            Assert.Equal(
+                new[] { "STAFF-1", "STUDENT-1" },
+                rows.Select(row => row.AccessNumber).Order(StringComparer.Ordinal).ToArray());
+            Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
+        }
+        finally
+        {
+            File.Delete(accessControlPath);
+            File.Delete(staffPath);
+            File.Delete(studentPath);
         }
     }
     [Fact]
@@ -343,6 +383,32 @@ public sealed class TurnstileServicesTests
     }
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 
+    private static async Task CreateAccessControlDatabaseAsync(string path, string serialNumber)
+    {
+        await using var context = new DemoDatabaseContext(
+            new DbContextOptionsBuilder<DemoDatabaseContext>()
+                .UseSqlite($"Data Source={path}").Options);
+        await context.Database.EnsureCreatedAsync();
+        context.ZkDevices.Add(new ZkDevice { SerialNumber = serialNumber });
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task CreateDirectoryDatabaseAsync(DirectoryDbContext context, string accessNumber)
+    {
+        await using (context)
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.People.Add(new DirectoryPerson { Field15 = accessNumber });
+            await context.SaveChangesAsync();
+        }
+    }
+
+    private static StaffDbContext CreateStaffContext(string path) => new(
+        new DbContextOptionsBuilder<StaffDbContext>().UseSqlite($"Data Source={path}").Options);
+
+    private static StudentDbContext CreateStudentContext(string path) => new(
+        new DbContextOptionsBuilder<StudentDbContext>().UseSqlite($"Data Source={path}").Options);
+
     private sealed class TestAccessControlDbContextFactory(DbContextOptions<AccessControlDbContext> options)
         : IDbContextFactory<AccessControlDbContext>
     {
@@ -364,5 +430,11 @@ public sealed class TurnstileServicesTests
         where TContext : DbContext
     {
         public TContext CreateDbContext() => throw new InvalidOperationException("Directory unavailable in this test.");
+    }
+
+    private sealed class TestDirectoryDbContextFactory<TContext>(Func<TContext> createContext) : IDbContextFactory<TContext>
+        where TContext : DbContext
+    {
+        public TContext CreateDbContext() => createContext();
     }
 }
