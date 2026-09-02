@@ -1,16 +1,16 @@
 {
   "AllowedHosts": "*",
   "ConnectionStrings": {
-    "AccessControlDb": "Data Source=sentry-demo.db",
-    "StaffDb": "Data Source=sentry-demo.db",
-    "StudentDb": "Data Source=sentry-demo.db",
-    "PersonnelsDb": "Data Source=sentry-demo.db"
+    "AccessControlDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=Access Control;Integrated Security=True;TrustServerCertificate=True;",
+    "StaffDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=STAFF;Integrated Security=True;TrustServerCertificate=True;",
+    "StudentDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=STUDENT;Integrated Security=True;TrustServerCertificate=True;",
+    "PersonnelsDb": "Server=EOS-NITRO\\SQLSERVER2023;Database=Personnels;Integrated Security=True;TrustServerCertificate=True;"
   },
   "Monitoring": {
     "OperatingMode": "Demo",
     "DemoLogIntervalSeconds": 10,
     "DeviceId": "all",
-    "PhotosPath": "",
+    "PhotosPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Photos\\Photos",
     "PollingInterval": 500,
     "HighlightDisplayDuration": 5000,
     "FeedRetentionDuration": 10000,
