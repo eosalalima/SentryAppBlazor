@@ -254,6 +254,45 @@ public sealed class TurnstileServicesTests
         }
     }
     [Fact]
+    public async Task Demo_writer_still_inserts_when_optional_source_queries_fail()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
+        var missingDatabasePath = Path.Combine(Path.GetTempPath(), $"sentry-missing-{Guid.NewGuid():N}.db");
+        var validOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite($"Data Source={databasePath}").Options;
+        var missingOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
+            .UseSqlite($"Data Source={missingDatabasePath}").Options;
+
+        try
+        {
+            await using (var setup = new DemoDatabaseContext(
+                new DbContextOptionsBuilder<DemoDatabaseContext>()
+                    .UseSqlite($"Data Source={databasePath}").Options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+            }
+
+            var writer = new DeviceLogWriter(
+                new SequencedAccessControlDbContextFactory(missingOptions, validOptions),
+                new FailingDirectoryDbContextFactory<StaffDbContext>(),
+                new FailingDirectoryDbContextFactory<StudentDbContext>(),
+                NullLogger<DeviceLogWriter>.Instance);
+
+            var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
+
+            Assert.NotNull(id);
+            await using var verification = new AccessControlDbContext(validOptions);
+            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
+            Assert.Null(row.AccessNumber);
+            Assert.Null(row.DeviceSerialNumber);
+        }
+        finally
+        {
+            File.Delete(databasePath);
+            File.Delete(missingDatabasePath);
+        }
+    }
+    [Fact]
     public void Access_control_factory_reads_the_monitoring_settings_store()
     {
         var constructor = Assert.Single(typeof(MonitoringAccessControlDbContextFactory).GetConstructors());
@@ -308,6 +347,17 @@ public sealed class TurnstileServicesTests
         : IDbContextFactory<AccessControlDbContext>
     {
         public AccessControlDbContext CreateDbContext() => new(options);
+    }
+
+    private sealed class SequencedAccessControlDbContextFactory(
+        DbContextOptions<AccessControlDbContext> failingOptions,
+        DbContextOptions<AccessControlDbContext> validOptions)
+        : IDbContextFactory<AccessControlDbContext>
+    {
+        private int contextsCreated;
+
+        public AccessControlDbContext CreateDbContext() =>
+            new(Interlocked.Increment(ref contextsCreated) <= 2 ? failingOptions : validOptions);
     }
 
     private sealed class FailingDirectoryDbContextFactory<TContext> : IDbContextFactory<TContext>

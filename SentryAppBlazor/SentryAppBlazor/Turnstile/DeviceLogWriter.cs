@@ -22,13 +22,7 @@ public sealed class DeviceLogWriter(
 
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
-        await using var db = await factory.CreateDbContextAsync(token);
-        var recentAccessNumbers = await db.DeviceLogs.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "")
-            .OrderByDescending(x => x.TimeLogStamp)
-            .Select(x => x.AccessNumber!)
-            .Take(100)
-            .ToListAsync(token);
+        var recentAccessNumbers = await ReadRecentAccessNumbersAsync(token);
         // Use the directory databases configured in Monitoring Settings as the
         // authoritative source of demo personnel. Existing access-control logs
         // remain a fallback for installations where a directory is temporarily
@@ -40,11 +34,7 @@ public sealed class DeviceLogWriter(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var serialNumbers = await db.ZkDevices.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.SerialNumber != "")
-            .OrderBy(x => x.SerialNumber)
-            .Select(x => x.SerialNumber)
-            .ToListAsync(token);
+        var serialNumbers = await ReadSerialNumbersAsync(token);
 
         // Preserve nulls when a new database has no source data; those columns are
         // optional in the Access Control schema and the event must still persist.
@@ -55,12 +45,63 @@ public sealed class DeviceLogWriter(
         previousDemoAccessNumber = accessNumber;
         var serialNumber = serialNumbers.Count == 0 ? null : serialNumbers[random.Next(serialNumbers.Count)];
 
+        // Discovery queries are deliberately isolated from the write context. A
+        // missing legacy ZKDevices column or unavailable directory must not leave
+        // the context in a failed state and suppress an otherwise valid insert.
+        await using var db = await factory.CreateDbContextAsync(token);
         return await InsertAsync(db, accessNumber, serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
             "Test",
             EventCodes[random.Next(EventCodes.Length)],
             EventAddresses[random.Next(EventAddresses.Length)],
             VerifyModes[random.Next(VerifyModes.Length)], token);
+    }
+
+    private async Task<List<string>> ReadRecentAccessNumbersAsync(CancellationToken token)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync(token);
+            return await db.DeviceLogs.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "")
+                .OrderByDescending(x => x.TimeLogStamp)
+                .Select(x => x.AccessNumber!)
+                .Take(100)
+                .ToListAsync(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Unable to read existing DeviceLogs personnel; continuing demo insert without that fallback");
+            return [];
+        }
+    }
+
+    private async Task<List<string>> ReadSerialNumbersAsync(CancellationToken token)
+    {
+        try
+        {
+            await using var db = await factory.CreateDbContextAsync(token);
+            return await db.ZkDevices.AsNoTracking()
+                .Where(x => !x.IsDeleted && x.SerialNumber != "")
+                .OrderBy(x => x.SerialNumber)
+                .Select(x => x.SerialNumber)
+                .ToListAsync(token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Unable to read ZKDevices; continuing demo insert without a device reference");
+            return [];
+        }
     }
 
     private async Task<List<string>> ReadAccessNumbersAsync<TContext>(
