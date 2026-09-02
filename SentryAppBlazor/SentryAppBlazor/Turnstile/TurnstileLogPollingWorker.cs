@@ -118,18 +118,34 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         var accessNumbers = rows.Select(x => x.AccessNumber).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!).Distinct().ToArray();
         if (accessNumbers.Length > 0)
         {
-            await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
-            var profiles = await personnels.Personnels.AsNoTracking()
-                .Where(x => accessNumbers.Contains(x.AccessNumber) && !x.IsDeleted)
-                .Select(x => new { x.AccessNumber, x.LastName, x.FirstName, x.PhotoId })
-                .ToDictionaryAsync(x => x.AccessNumber, token);
-            foreach (var row in rows)
-                if (row.AccessNumber is not null && profiles.TryGetValue(row.AccessNumber, out var profile))
-                {
-                    row.LastName = profile.LastName;
-                    row.FirstName = profile.FirstName;
-                    row.PhotoId = profile.PhotoId;
-                }
+            try
+            {
+                await using var personnels = await personnelsFactory.CreateDbContextAsync(token);
+                var profiles = await personnels.Personnels.AsNoTracking()
+                    .Where(x => accessNumbers.Contains(x.AccessNumber) && !x.IsDeleted)
+                    .Select(x => new { x.AccessNumber, x.LastName, x.FirstName, x.PhotoId })
+                    .ToDictionaryAsync(x => x.AccessNumber, token);
+                foreach (var row in rows)
+                    if (row.AccessNumber is not null && profiles.TryGetValue(row.AccessNumber, out var profile))
+                    {
+                        row.LastName = profile.LastName;
+                        row.FirstName = profile.FirstName;
+                        row.PhotoId = profile.PhotoId;
+                    }
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // Identity enrichment is optional. A missing or temporarily
+                // unavailable Personnels database must not prevent valid access
+                // events from reaching the monitor.
+                logger.LogWarning(
+                    exception,
+                    "Unable to enrich turnstile events from Personnels; displaying events without profile details");
+            }
         }
 
         foreach (var row in rows)
