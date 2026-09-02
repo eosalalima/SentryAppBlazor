@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "BN/pheQXw6s=",
+  "dgSpecHash": "ooi8iAWv0jI=",
   "success": true,
-  "projectFilePath": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor\\SentryAppBlazor.csproj",
+  "projectFilePath": "F:\\Projects\\Dr. Gloria D Lacson School\\Application\\SentryAppBlazor\\SentryAppBlazor - Copy\\SentryAppBlazor\\SentryAppBlazor.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Eric Salalima\\.nuget\\packages\\microsoft.aspnetcore.app.internal.assets\\10.0.11\\microsoft.aspnetcore.app.internal.assets.10.0.11.nupkg.sha512"
   ],
