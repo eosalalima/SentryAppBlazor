@@ -105,15 +105,13 @@ public sealed class TurnstileServicesTests
         Assert.Contains(method.GetParameters(), parameter => parameter.ParameterType == typeof(Random));
     }
     [Fact]
-    public void Demo_writer_uses_access_control_staff_and_student_databases()
+    public void Demo_writer_only_requires_the_access_control_database()
     {
         var constructor = Assert.Single(typeof(DeviceLogWriter).GetConstructors());
 
-        Assert.Equal(4, constructor.GetParameters().Length);
+        Assert.Equal(2, constructor.GetParameters().Length);
         Assert.Equal(typeof(IDbContextFactory<AccessControlDbContext>), constructor.GetParameters()[0].ParameterType);
-        Assert.Equal(typeof(IDbContextFactory<StaffDbContext>), constructor.GetParameters()[1].ParameterType);
-        Assert.Equal(typeof(IDbContextFactory<StudentDbContext>), constructor.GetParameters()[2].ParameterType);
-        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[3].ParameterType);
+        Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[1].ParameterType);
     }
     [Fact]
     public async Task Demo_writer_inserts_a_persisted_device_log()
@@ -131,21 +129,11 @@ public sealed class TurnstileServicesTests
             {
                 await setup.Database.EnsureCreatedAsync();
                 setup.ZkDevices.Add(new ZkDevice { SerialNumber = "TEST-GATE", Name = "Test gate" });
-                setup.Personnels.AddRange(
-                    new Personnel { AccessNumber = "TEST-1001", FirstName = "Ada" },
-                    new Personnel { AccessNumber = "TEST-1002", FirstName = "Grace" });
-                setup.DirectoryPeople.AddRange(
-                    new DirectoryPerson { Field15 = "TEST-1001", Field02 = "Ada" },
-                    new DirectoryPerson { Field15 = "TEST-1002", Field02 = "Grace" });
                 await setup.SaveChangesAsync();
             }
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(options),
-                new TestStaffDbContextFactory(new DbContextOptionsBuilder<StaffDbContext>()
-                    .UseSqlite($"Data Source={databasePath}").Options),
-                new TestStudentDbContextFactory(new DbContextOptionsBuilder<StudentDbContext>()
-                    .UseSqlite($"Data Source={databasePath}").Options),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var firstId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
@@ -156,7 +144,7 @@ public sealed class TurnstileServicesTests
             await using var verification = new AccessControlDbContext(options);
             var rows = await verification.DeviceLogs.OrderBy(log => log.TimeLogStamp).ToListAsync();
             Assert.Equal(2, rows.Count);
-            Assert.NotEqual(rows[0].AccessNumber, rows[1].AccessNumber);
+            Assert.All(rows, row => Assert.Null(row.AccessNumber));
             Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
             Assert.All(rows, row => Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes));
             Assert.All(rows, row => Assert.Equal("Test", row.CardNo));
@@ -189,10 +177,6 @@ public sealed class TurnstileServicesTests
 
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(accessControlOptions),
-                new TestStaffDbContextFactory(new DbContextOptionsBuilder<StaffDbContext>()
-                    .UseSqlite($"Data Source={databasePath}").Options),
-                new TestStudentDbContextFactory(new DbContextOptionsBuilder<StudentDbContext>()
-                    .UseSqlite($"Data Source={databasePath}").Options),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var id = await writer.InsertAsync("PERSON-42", "GATE-7", "IN", "CARD-42", CancellationToken.None);
@@ -227,10 +211,9 @@ public sealed class TurnstileServicesTests
         Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.IsNotified)));
     }
     [Fact]
-    public async Task Demo_writer_still_inserts_when_directory_databases_are_unavailable()
+    public async Task Demo_writer_inserts_with_only_an_access_control_connection()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
-        var missingDirectoryPath = Path.Combine(Path.GetTempPath(), $"sentry-missing-directory-{Guid.NewGuid():N}.db");
         var accessControlOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
             .UseSqlite($"Data Source={databasePath}").Options;
 
@@ -245,14 +228,8 @@ public sealed class TurnstileServicesTests
                 await setup.SaveChangesAsync();
             }
 
-            var missingStaffOptions = new DbContextOptionsBuilder<StaffDbContext>()
-                .UseSqlite($"Data Source={missingDirectoryPath}").Options;
-            var missingStudentOptions = new DbContextOptionsBuilder<StudentDbContext>()
-                .UseSqlite($"Data Source={missingDirectoryPath}").Options;
             var writer = new DeviceLogWriter(
                 new TestAccessControlDbContextFactory(accessControlOptions),
-                new TestStaffDbContextFactory(missingStaffOptions),
-                new TestStudentDbContextFactory(missingStudentOptions),
                 NullLogger<DeviceLogWriter>.Instance);
 
             var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
@@ -266,7 +243,6 @@ public sealed class TurnstileServicesTests
         finally
         {
             File.Delete(databasePath);
-            File.Delete(missingDirectoryPath);
         }
     }
     [Fact]
@@ -324,15 +300,5 @@ public sealed class TurnstileServicesTests
         : IDbContextFactory<AccessControlDbContext>
     {
         public AccessControlDbContext CreateDbContext() => new(options);
-    }
-    private sealed class TestStaffDbContextFactory(DbContextOptions<StaffDbContext> options)
-        : IDbContextFactory<StaffDbContext>
-    {
-        public StaffDbContext CreateDbContext() => new(options);
-    }
-    private sealed class TestStudentDbContextFactory(DbContextOptions<StudentDbContext> options)
-        : IDbContextFactory<StudentDbContext>
-    {
-        public StudentDbContext CreateDbContext() => new(options);
     }
 }
