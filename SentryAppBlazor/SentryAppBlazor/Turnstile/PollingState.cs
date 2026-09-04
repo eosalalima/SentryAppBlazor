@@ -97,7 +97,6 @@ public sealed class TurnstileLogState : IDisposable
     private readonly object gate = new();
     private readonly LinkedList<TurnstileLogEntry> incoming = [];
     private readonly LinkedList<TurnstileLogEntry> outgoing = [];
-    private readonly Queue<TurnstileLogEntry> waitingForSpotlight = [];
     private readonly RecentlySeenIds ids = new(2000);
     private readonly MonitoringSettingsStore? settings;
     private readonly Func<MonitoringOptions>? optionsProvider;
@@ -116,25 +115,16 @@ public sealed class TurnstileLogState : IDisposable
 
     public bool Add(TurnstileLogEntry entry)
     {
-        var startSpotlightProcessor = false;
         lock(gate)
         {
             if(!ids.Add(entry.TimeLogId)) return false;
-
-            // Polling can return several rows at once. Queue them rather than
-            // replacing the current spotlight so every database record receives
-            // its full configured display time before entering history.
-            if (spotlight is null)
-            {
-                spotlight = entry;
-                startSpotlightProcessor = true;
-            }
-            else
-                waitingForSpotlight.Enqueue(entry);
+            // The spotlight always represents the newest database event. Each
+            // event gets its own promotion timer, so a burst does not delay the
+            // newest item from appearing immediately.
+            spotlight = entry;
         }
         NotifyChanged();
-        if (startSpotlightProcessor)
-            _ = ProcessSpotlightQueueAsync();
+        _ = MoveToHistoryAsync(entry);
         return true;
     }
 
@@ -150,31 +140,21 @@ public sealed class TurnstileLogState : IDisposable
         if(changed) NotifyChanged();
     }
 
-    private async Task ProcessSpotlightQueueAsync()
+    private async Task MoveToHistoryAsync(TurnstileLogEntry entry)
     {
-        while (true)
+        try { await Task.Delay(TimeSpan.FromMilliseconds(CurrentOptions.HighlightDurationMs), time, lifetime.Token); }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
+
+        lock(gate)
         {
-            TurnstileLogEntry current;
-            lock (gate)
-            {
-                if (spotlight is null) return;
-                current = spotlight;
-            }
-
-            try { await Task.Delay(TimeSpan.FromMilliseconds(CurrentOptions.HighlightDurationMs), time, lifetime.Token); }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
-
-            lock(gate)
-            {
-                var history=IsIn(current.LogType)?incoming:outgoing;
-                history.AddFirst(current);
-                var maximum = CurrentOptions.MaximumFeedItemsPerCategory;
-                while(history.Count>maximum) history.RemoveLast();
-                spotlight = waitingForSpotlight.TryDequeue(out var next) ? next : null;
-            }
-            NotifyChanged();
-            _ = ExpireFromHistoryAsync(current);
+            var history=IsIn(entry.LogType)?incoming:outgoing;
+            history.AddFirst(entry);
+            var maximum = Math.Clamp(CurrentOptions.MaximumFeedItemsPerCategory, 1, 10);
+            while(history.Count>maximum) history.RemoveLast();
+            if (spotlight?.TimeLogId == entry.TimeLogId) spotlight = null;
         }
+        NotifyChanged();
+        _ = ExpireFromHistoryAsync(entry);
     }
 
     private async Task ExpireFromHistoryAsync(TurnstileLogEntry entry)

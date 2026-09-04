@@ -1,6 +1,6 @@
 @using SentryAppBlazor.Turnstile
 <section class="log-group">
-    <div class="queue-heading"><h2>@Title</h2><span class="count">@Entries.Count / 10</span></div>
+    <div class="queue-heading"><h2>@Title</h2><span class="count">@Entries.Count</span></div>
     @if (Entries.Count == 0) { <p class="queue-empty">No @Title.ToLowerInvariant() records.</p> }
     else
     {
@@ -8,7 +8,7 @@
         {
             <article class="event-row">
                 <img src="@item.PhotoUrl" alt="Portrait of @item.PersonnelName"/>
-                <div class="event-person"><strong>@item.PersonnelName</strong><small>Access @item.AccessNumber · @item.DeviceName</small><small>Event @Display(item.Event) · Verify @Display(item.VerifyMode) · @item.SmsStatusMessage</small></div>
+                <div class="event-person"><strong>@item.PersonnelName</strong><small>Access @item.AccessNumber · @item.DeviceName (@Display(item.DeviceSerialNumber))</small><small>Event @Display(item.Event) / address @Display(item.EventAddress) · Verify @Display(item.VerifyMode) · @item.SmsStatusMessage</small></div>
                 <span class="direction @(IsIn(item) ? "entry" : "exit")">@item.LogType</span><time>@item.TimeLogStamp.ToLocalTime().ToString("g")</time>
             </article>
         }</div>

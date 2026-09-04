@@ -9,12 +9,7 @@
 <header class="monitor-header"><a class="brand" href="/"><span class="brand-mark">DGL</span><span><strong>DR. GLORIA D. LACSON</strong><small>FOUNDATION COLLEGES</small></span></a><div class="header-center"><span class="eyebrow">TURNSTILE MONITORING SYSTEM</span><strong>@mode monitoring</strong></div><div class="header-actions"><span class="status-pill @(Controller.IsActive?"online":"")"><i></i>@(Controller.IsActive?"Monitoring active":"Stopped")</span><button type="button" class="control-button" disabled="@Controller.IsActive" @onclick="Start">▶ Start</button><button type="button" class="control-button" disabled="@(!Controller.IsActive)" @onclick="Stop">■ Stop</button><a class="icon-button" href="/settings" aria-label="Open monitoring settings" title="Monitoring settings">⚙</a></div></header>
 <section class="monitor-controls" aria-label="Monitoring controls">
     <label>Mode<select @bind="mode" disabled="@Controller.IsActive"><option>Demo</option><option>Live</option></select></label>
-    @if (mode == "Demo")
-    {
-        <label>Access number<input @bind="accessNumber" disabled="@Controller.IsActive" placeholder="Existing STAFF/STUDENT number" /></label>
-        <label>Device serial<input @bind="deviceSerial" disabled="@Controller.IsActive" placeholder="Existing ZKDevices serial" /></label>
-        <label>Log type<select @bind="logType" disabled="@Controller.IsActive"><option>IN</option><option>OUT</option><option>BREAK OUT</option></select></label>
-    }
+    @if (mode == "Demo") { <p class="control-hint">Personnel, device, and IN/OUT/BREAK OUT are selected randomly for every demo event.</p> }
     @if (!string.IsNullOrWhiteSpace(message)) { <p class="save-message error" role="status">@message</p> }
 </section>
 <section class="summary-strip"><div><span class="pulse-dot"></span><span><small>SYSTEM</small><b>@(Controller.IsActive?"ONLINE":"PAUSED")</b></span></div><div><small>MONITORED DEVICE</small><b>All Devices</b></div><div><small>RECENT EVENTS</small><b>@Feed.Entries.Count</b></div><div class="clock"><small>LOCAL TIME</small><b>@DateTime.Now.ToString("HH:mm")</b></div></section>
@@ -23,16 +18,14 @@
     <SpotlightPanel Entry="@Feed.Spotlight"/>
 </div>
 @code {
-    private string mode = "Demo", accessNumber = "", deviceSerial = "", logType = "IN";
+    private string mode = "Demo";
     private string? message;
     protected override void OnInitialized() { mode = Settings.Current.Mode; Feed.Changed += Refresh; Controller.StatusChanged += StatusChanged; Controller.Changed += ControllerChanged; }
     private void Start()
     {
         message = null;
         var selectedMode = string.Equals(mode, "Live", StringComparison.OrdinalIgnoreCase) ? MonitoringMode.Live : MonitoringMode.Demo;
-        if (selectedMode == MonitoringMode.Demo && (string.IsNullOrWhiteSpace(accessNumber) || string.IsNullOrWhiteSpace(deviceSerial)))
-        { message = "Select an existing personnel access number and device before starting Demo monitoring."; return; }
-        Controller.TryConfigure(selectedMode, new(accessNumber, deviceSerial, logType));
+        Controller.TryConfigure(selectedMode);
         Controller.TryStart();
     }
     private void Stop() => Controller.TryStop();
