@@ -103,3 +103,4 @@
 @media (prefers-reduced-motion: reduce) {
     .reconnect-spinner { animation: none; }
 }
+.monitor-controls{display:flex;gap:1rem;align-items:end;flex-wrap:wrap;padding:1rem 2rem;background:#eef2f5;border-bottom:1px solid #d5dde4}.monitor-controls label{display:grid;gap:.3rem;font-size:.72rem;font-weight:700;text-transform:uppercase}.monitor-controls input,.monitor-controls select{min-width:11rem;padding:.55rem;border:1px solid #b7c2cc;border-radius:.35rem;background:white}.monitor-controls .save-message{margin:0}

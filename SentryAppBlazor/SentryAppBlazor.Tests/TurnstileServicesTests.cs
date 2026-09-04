@@ -91,7 +91,7 @@ public sealed class TurnstileServicesTests
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(DeviceLogWriter));
         Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstileLogState));
         Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(MonitoringSettingsStore));
-        Assert.DoesNotContain(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(TurnstilePollingController));
     }
     [Fact]
     public void Poller_reads_persisted_runtime_settings()
@@ -394,6 +394,88 @@ public sealed class TurnstileServicesTests
         Assert.Equal(15, options.LookbackSecondsOnStart);
         Assert.Equal(75, options.MaxRowsPerPoll);
     }
+    [Fact]
+    public void Demo_generation_requires_an_active_demo_session()
+    {
+        var controller = new TurnstilePollingController();
+        controller.TryConfigure(MonitoringMode.Demo);
+        Assert.False(DemoDeviceLogGenerator.CanGenerate(controller));
+        controller.Start();
+        Assert.True(DemoDeviceLogGenerator.CanGenerate(controller));
+        controller.Stop();
+        controller.TryConfigure(MonitoringMode.Live);
+        controller.Start();
+        Assert.False(DemoDeviceLogGenerator.CanGenerate(controller));
+    }
+
+    [Fact]
+    public void Controller_locks_mode_while_running_and_allows_live_mode()
+    {
+        var controller = new TurnstilePollingController();
+        Assert.True(controller.TryConfigure(MonitoringMode.Live));
+        controller.Start();
+        Assert.False(controller.TryConfigure(MonitoringMode.Demo));
+        Assert.Equal(MonitoringMode.Live, controller.Mode);
+    }
+
+    [Fact]
+    public void Compound_cursor_orders_identical_timestamps_by_id()
+    {
+        var timestamp = DateTimeOffset.UtcNow;
+        var ids = Enumerable.Range(0, 20).Select(_ => Guid.NewGuid()).Order().ToArray();
+        var rows = ids.Select(id => new DeviceLog { Id = id, TimeLogStamp = timestamp }).ToArray();
+
+        var remaining = rows.Where(row => TurnstileLogPollingWorker.IsAfterCursor(row, timestamp, ids[9]))
+            .OrderBy(row => row.TimeLogStamp).ThenBy(row => row.Id).ToArray();
+
+        Assert.Equal(ids[10..], remaining.Select(row => row.Id));
+    }
+
+    [Fact]
+    public async Task Spotlight_transitions_to_bounded_category_feed()
+    {
+        var options = new MonitoringOptions { HighlightDurationMs = 1, FeedItemTtlSeconds = 2, MaximumFeedItemsPerCategory = 2 };
+        using var state = new TurnstileLogState(TimeProvider.System, () => options);
+        state.Add(Entry(Guid.NewGuid()));
+        state.Add(Entry(Guid.NewGuid()));
+        state.Add(Entry(Guid.NewGuid()));
+
+        await Task.Delay(100);
+
+        Assert.Equal(2, state.InEntries.Count);
+    }
+
+    [Fact]
+    public async Task Feed_items_expire_after_the_configured_ttl()
+    {
+        var options = new MonitoringOptions { HighlightDurationMs = 1, FeedItemTtlSeconds = 1 };
+        using var state = new TurnstileLogState(TimeProvider.System, () => options);
+        state.Add(Entry(Guid.NewGuid()));
+        await Task.Delay(50);
+        Assert.Single(state.InEntries);
+        await Task.Delay(1050);
+        Assert.Empty(state.InEntries);
+    }
+
+    [Fact]
+    public void State_is_safe_for_concurrent_duplicate_submissions()
+    {
+        using var state = new TurnstileLogState();
+        var id = Guid.NewGuid();
+        var accepted = 0;
+        Parallel.For(0, 100, _ => { if (state.Add(Entry(id))) Interlocked.Increment(ref accepted); });
+        Assert.Equal(1, accepted);
+    }
+
+    [Fact]
+    public void Monitoring_options_reject_an_inverted_demo_delay_range()
+    {
+        var options = new MonitoringOptions { DemoMinimumDelaySeconds = 10, DemoMaximumDelaySeconds = 1 };
+        var results = new List<System.ComponentModel.DataAnnotations.ValidationResult>();
+        Assert.False(System.ComponentModel.DataAnnotations.Validator.TryValidateObject(
+            options, new System.ComponentModel.DataAnnotations.ValidationContext(options), results, true));
+    }
+
     private static TurnstileLogEntry Entry(Guid id)=>new(id,DateTimeOffset.UtcNow,"IN","1","Person","/p","D","Gate",null,null,null,"sent");
 
     private static async Task CreateAccessControlDatabaseAsync(string path, string serialNumber)

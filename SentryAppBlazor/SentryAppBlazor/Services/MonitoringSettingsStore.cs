@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using System.ComponentModel.DataAnnotations;
 
 namespace SentryAppBlazor.Services;
 
@@ -37,6 +38,7 @@ public sealed class MonitoringSettingsStore(
     {
         ArgumentNullException.ThrowIfNull(monitoring);
         ArgumentNullException.ThrowIfNull(connectionStrings);
+        Validator.ValidateObject(monitoring, new ValidationContext(monitoring), validateAllProperties: true);
         await gate.WaitAsync(cancellationToken);
         var temporaryPath = $"{configPath}.{Guid.NewGuid():N}.tmp";
         try

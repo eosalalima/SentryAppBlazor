@@ -10,18 +10,20 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>Demo selects an access number from the union of STAFF and STUDENT <code>MyDataTable.Field15</code>, and a device from Access Control <code>ZKDevices</code>. Choose Demo, set the interval, and apply; generation runs automatically while Demo mode is selected.</span></div>
+    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>The monitor page requires an access number from STAFF/STUDENT <code>MyDataTable.Field15</code> and a serial from <code>ZKDevices</code>. Generation occurs only while monitoring is started in Demo mode.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
         <section class="settings-card">
             <h2>Operation</h2><div class="form-grid">
             <label>Operating mode<select @onchange="UpdateOperatingMode"><option value="Demo" selected="@IsOperatingMode("Demo")">Demo</option><option value="Live" selected="@IsOperatingMode("Live")">Live</option></select><small>Demo writes sample records to DeviceLogs using STAFF/STUDENT access numbers and Access Control devices.</small></label>
-            <label>Demo log interval (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoLogIntervalSeconds" /><ValidationMessage For="() => Model.DemoLogIntervalSeconds" /><small>In Demo mode, one record is inserted immediately and then after every interval.</small></label>
+            <label>Demo minimum delay (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoMinimumDelaySeconds" /><ValidationMessage For="() => Model.DemoMinimumDelaySeconds" /></label>
+            <label>Demo maximum delay (seconds)<input type="number" min="1" max="3600" @bind="Model.DemoMaximumDelaySeconds" /><ValidationMessage For="() => Model.DemoMaximumDelaySeconds" /></label>
             <label>Device to monitor<input @bind="Model.DeviceId" /><small>Use <code>all</code> until the confirmed device source is connected.</small></label>
-            <label>Polling interval<input type="number" min="250" max="60000" @bind="Model.PollingInterval" /><ValidationMessage For="() => Model.PollingInterval" /></label>
-            <label>Startup lookback<input type="number" min="0" max="3600" @bind="Model.LookbackSecondsOnStart" /><ValidationMessage For="() => Model.LookbackSecondsOnStart" /></label>
-            <label>Maximum rows per poll<input type="number" min="1" max="500" @bind="Model.MaxRowsPerPoll" /><ValidationMessage For="() => Model.MaxRowsPerPoll" /></label></div>
+            <label>Polling interval (ms)<input type="number" min="50" max="60000" @bind="Model.PollingIntervalMs" /><ValidationMessage For="() => Model.PollingIntervalMs" /></label>
+            <label>Startup lookback (seconds)<input type="number" min="0" max="3600" @bind="Model.StartupLookbackSeconds" /><ValidationMessage For="() => Model.StartupLookbackSeconds" /></label>
+            <label>Maximum rows per poll<input type="number" min="1" max="500" @bind="Model.MaximumRowsPerPoll" /><ValidationMessage For="() => Model.MaximumRowsPerPoll" /></label>
+            <label>Flow diagnostics<select @bind="Model.EnableFlowDiagnostics"><option value="false">Disabled</option><option value="true">Enabled</option></select></label></div>
         </section>
         <section class="settings-card">
             <h2>Database</h2><div class="form-grid">
@@ -31,9 +33,10 @@
             <label class="wide">Personnels connection string<input @bind="ConnectionStrings.PersonnelsDb" autocomplete="off" spellcheck="false" /><small>Connection used for personnel identity, names, and photos.</small></label></div>
         </section>
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
-            <label>Spotlight duration<input type="number" min="1000" max="60000" @bind="Model.HighlightDisplayDuration" /><ValidationMessage For="() => Model.HighlightDisplayDuration" /></label>
-            <label>Feed retention<input type="number" min="1000" max="300000" @bind="Model.FeedRetentionDuration" /><ValidationMessage For="() => Model.FeedRetentionDuration" /></label>
-            <label class="wide">Protected photo directory<input @bind="Model.PhotosPath" /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
+            <label>Spotlight duration (ms)<input type="number" min="1" max="300000" @bind="Model.HighlightDurationMs" /><ValidationMessage For="() => Model.HighlightDurationMs" /></label>
+            <label>Feed retention (seconds)<input type="number" min="1" max="3600" @bind="Model.FeedItemTtlSeconds" /><ValidationMessage For="() => Model.FeedItemTtlSeconds" /></label>
+            <label>Maximum items/category<input type="number" min="1" max="100" @bind="Model.MaximumFeedItemsPerCategory" /><ValidationMessage For="() => Model.MaximumFeedItemsPerCategory" /></label>
+            <label class="wide">Protected photo directory<input @bind="Model.ExternalPhotoDirectory" /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
         </section>
         <section class="settings-card"><h2>Notifications</h2><div class="form-grid">
             <label>SMS status<select @onchange="UpdateSmsStatus"><option value="enabled" selected="@Model.SmsEnabled">Enabled</option><option value="disabled" selected="@(!Model.SmsEnabled)">Disabled</option></select></label>
@@ -97,10 +100,10 @@
     private void HandleInvalidSubmit() => statusMessage = "Correct the highlighted settings before applying.";
 
     private bool IsOperatingMode(string mode) =>
-        string.Equals(Model.OperatingMode, mode, StringComparison.OrdinalIgnoreCase);
+        string.Equals(Model.Mode, mode, StringComparison.OrdinalIgnoreCase);
 
     private void UpdateOperatingMode(ChangeEventArgs args) =>
-        Model.OperatingMode = args.Value?.ToString() ?? Model.OperatingMode;
+        Model.Mode = args.Value?.ToString() ?? Model.Mode;
 
     private void UpdateSmsStatus(ChangeEventArgs args) =>
         Model.SmsEnabled = IsEnabled(args);

@@ -15,10 +15,28 @@ public sealed class DeviceLogWriter(
     IDbContextFactory<StudentDbContext> studentFactory,
     ILogger<DeviceLogWriter> logger)
 {
-    internal static readonly string[] EventCodes = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
-    internal static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
-    internal static readonly string[] VerifyModes = ["200", "255", "3", "4"];
+    public static readonly string[] EventCodes = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
+    public static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
+    public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
     private string? previousDemoAccessNumber;
+
+    public async Task<Guid?> InsertDemoAsync(DemoSelection selection, CancellationToken token)
+    {
+        if (string.IsNullOrWhiteSpace(selection.AccessNumber) ||
+            string.IsNullOrWhiteSpace(selection.DeviceSerialNumber) ||
+            !DemoDeviceLogGenerator.LogTypes.Contains(selection.LogType, StringComparer.OrdinalIgnoreCase))
+            return null;
+
+        var accessNumber = selection.AccessNumber.Trim();
+        var serial = selection.DeviceSerialNumber.Trim();
+        var personnelExists = (await ReadAccessNumbersAsync(staffFactory, "STAFF", token))
+            .Concat(await ReadAccessNumbersAsync(studentFactory, "STUDENT", token))
+            .Contains(accessNumber, StringComparer.OrdinalIgnoreCase);
+        var deviceExists = (await ReadSerialNumbersAsync(token)).Contains(serial, StringComparer.OrdinalIgnoreCase);
+        if (!personnelExists || !deviceExists) return null;
+
+        return await InsertAsync(accessNumber, serial, selection.LogType, "TEST", "20", "1", "200", token);
+    }
 
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
