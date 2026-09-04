@@ -6,6 +6,8 @@ using SentryAppBlazor.Turnstile;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile(MonitoringSettingsStore.ConfigFileName, optional: true, reloadOnChange: true);
+builder.Logging.AddProvider(new SentryFileLoggerProvider(
+    Path.Combine(builder.Environment.ContentRootPath, "sentry.log")));
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 // Database monitoring is an auxiliary workload. If a hosted worker ever escapes its
 // own retry loop, keep the IIS-hosted web application and its diagnostics UI alive.
