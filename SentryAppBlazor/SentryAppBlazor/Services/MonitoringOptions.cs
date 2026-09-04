@@ -16,7 +16,7 @@ public sealed class MonitoringOptions : IValidatableObject
     [Range(1, 3_600)] public int DemoMaximumDelaySeconds { get; set; } = 10;
     [Range(1, 300_000)] public int HighlightDurationMs { get; set; } = 5_000;
     [Range(1, 3_600)] public int FeedItemTtlSeconds { get; set; } = 10;
-    [Range(1, 100)] public int MaximumFeedItemsPerCategory { get; set; } = 10;
+    [Range(1, 10)] public int MaximumFeedItemsPerCategory { get; set; } = 10;
     public bool EnableFlowDiagnostics { get; set; }
     public string ExternalPhotoDirectory { get; set; } = string.Empty;
     public string DeviceId { get; set; } = "all";

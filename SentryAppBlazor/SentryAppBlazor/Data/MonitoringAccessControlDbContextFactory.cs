@@ -40,7 +40,12 @@ public sealed class MonitoringPersonnelsDbContextFactory(MonitoringSettingsStore
     : IDbContextFactory<PersonnelsDbContext>
 {
     public PersonnelsDbContext CreateDbContext() => new(
-        BuildOptions<PersonnelsDbContext>(settings.CurrentConnectionStrings.PersonnelsDb, "Personnels"));
+        BuildOptions<PersonnelsDbContext>(GetConnectionString(settings.CurrentConnectionStrings), "Personnels"));
+
+    private static string GetConnectionString(ConnectionStringSettings connectionStrings) =>
+        string.IsNullOrWhiteSpace(connectionStrings.PersonnelsDb)
+            ? connectionStrings.AccessControlDb
+            : connectionStrings.PersonnelsDb;
 
     internal static DbContextOptions<TContext> BuildOptions<TContext>(string connectionString, string databaseName)
         where TContext : DbContext

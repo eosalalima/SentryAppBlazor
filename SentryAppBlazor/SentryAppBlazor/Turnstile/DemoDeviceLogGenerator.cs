@@ -27,11 +27,11 @@ public sealed class DemoDeviceLogGenerator(
 
                 try
                 {
-                    var id = await writer.InsertDemoAsync(controller.Selection, token);
+                    var id = await writer.InsertDemoAsync(random, token);
                     if (id is null)
                     {
-                        controller.ReportStatus("Demo data was not inserted. Select an existing access number and device.");
-                        logger.LogWarning("Demo insert skipped because its selected personnel or device is not valid");
+                        controller.ReportStatus("Demo data was not inserted because no STAFF/STUDENT personnel or ZKDevice was found.");
+                        logger.LogWarning("Demo insert skipped because no personnel or device is available");
                     }
                     else
                     {

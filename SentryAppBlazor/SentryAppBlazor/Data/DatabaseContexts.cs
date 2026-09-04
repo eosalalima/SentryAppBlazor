@@ -12,17 +12,6 @@ public sealed class AccessControlDbContext(DbContextOptions<AccessControlDbConte
         var deviceLog = b.Entity<DeviceLog>();
         deviceLog.ToTable("DeviceLogs", "dbo");
 
-        // These fields are not used by the monitor and are absent from older
-        // Access Control DeviceLogs schemas. Keeping them in the read/write model
-        // makes EF include them in every INSERT, causing the entire event write to
-        // fail on those installations. The local demo context retains the full
-        // model, while the production-compatible context maps only common fields.
-        deviceLog.Ignore(x => x.SiteCode);
-        deviceLog.Ignore(x => x.LinkId);
-        deviceLog.Ignore(x => x.HasMask);
-        deviceLog.Ignore(x => x.Temperature);
-        deviceLog.Ignore(x => x.IsNotified);
-
         if (Database.IsSqlite())
         {
             deviceLog.Property(x => x.DateCreated).HasConversion<long>();

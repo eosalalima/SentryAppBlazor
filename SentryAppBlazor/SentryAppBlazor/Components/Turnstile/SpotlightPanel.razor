@@ -7,7 +7,7 @@
             <div class="photo-frame"><img src="@Entry.PhotoUrl" alt="Portrait of @Entry.PersonnelName"/><span class="direction @(IsIn ? "entry" : "exit")">@Entry.LogType</span></div>
             <div class="spotlight-copy">
                 <span class="eyebrow">LIVE TURNSTILE EVENT</span><h2>@Entry.PersonnelName</h2><p class="person-id">Access no. @Entry.AccessNumber</p>
-                <dl><div><dt>DEVICE</dt><dd>@Entry.DeviceName</dd></div><div><dt>TIME</dt><dd>@Entry.TimeLogStamp.ToLocalTime().ToString("g")</dd></div><div><dt>EVENT / VERIFICATION</dt><dd>@Display(Entry.Event) · @Display(Entry.VerifyMode)</dd></div><div><dt>SMS STATUS</dt><dd>@Entry.SmsStatusMessage</dd></div></dl>
+                <dl><div><dt>DEVICE</dt><dd>@Entry.DeviceName (@Display(Entry.DeviceSerialNumber))</dd></div><div><dt>TIME</dt><dd>@Entry.TimeLogStamp.ToLocalTime().ToString("g")</dd></div><div><dt>EVENT / ADDRESS / VERIFICATION</dt><dd>@Display(Entry.Event) · @Display(Entry.EventAddress) · @Display(Entry.VerifyMode)</dd></div><div><dt>SMS STATUS</dt><dd>@Entry.SmsStatusMessage</dd></div></dl>
             </div>
         </div>
     }

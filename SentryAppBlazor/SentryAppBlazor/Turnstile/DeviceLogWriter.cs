@@ -15,9 +15,20 @@ public sealed class DeviceLogWriter(
     IDbContextFactory<StudentDbContext> studentFactory,
     ILogger<DeviceLogWriter> logger)
 {
-    public static readonly string[] EventCodes = ["0", "105", "20", "202", "214", "23", "27", "41", "42"];
-    public static readonly string[] EventAddresses = ["0", "1", "105", "2", "20", "214"];
-    public static readonly string[] VerifyModes = ["200", "255", "3", "4"];
+    public const string PersonnelSql = """
+        SELECT [Id], [Field01] AS IDNumber, [Field02] AS LastName,
+               [Field03] AS FirstName, [Field04] AS MiddleInitial,
+               [Field13] AS MobileNumber, [Field15] AS AccessNumber,
+               'STAFF' AS PersonnelType
+        FROM [STAFF].[dbo].[MyDataTable]
+        UNION
+        SELECT [Id], [Field01] AS IDNumber, [Field02] AS LastName,
+               [Field03] AS FirstName, [Field04] AS MiddleInitial,
+               [Field13] AS MobileNumber, [Field15] AS AccessNumber,
+               'STUDENT' AS PersonnelType
+        FROM [STUDENT].[dbo].[MyDataTable]
+        ORDER BY [Field02], [Field03]
+        """;
     private string? previousDemoAccessNumber;
 
     public async Task<Guid?> InsertDemoAsync(DemoSelection selection, CancellationToken token)
@@ -40,28 +51,22 @@ public sealed class DeviceLogWriter(
 
     public async Task<Guid?> InsertDemoAsync(Random random, CancellationToken token)
     {
-        var recentAccessNumbers = await ReadRecentAccessNumbersAsync(token);
-        // Use the directory databases configured in Monitoring Settings as the
-        // authoritative source of demo personnel. Existing access-control logs
-        // remain a fallback for installations where a directory is temporarily
-        // unavailable or has no records yet.
-        var accessNumbers = (await ReadAccessNumbersAsync(staffFactory, "STAFF", token))
-            .Concat(await ReadAccessNumbersAsync(studentFactory, "STUDENT", token))
-            .Concat(recentAccessNumbers)
+        var accessNumbers = (await ReadCombinedAccessNumbersAsync(token))
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var serialNumbers = await ReadSerialNumbersAsync(token);
 
-        // Preserve nulls when a new database has no source data; those columns are
-        // optional in the Access Control schema and the event must still persist.
+        if (accessNumbers.Count == 0 || serialNumbers.Count == 0)
+            return null;
+
         var choices = accessNumbers.Count > 1
             ? accessNumbers.Where(x => x != previousDemoAccessNumber).ToList()
             : accessNumbers;
-        var accessNumber = choices.Count == 0 ? null : choices[random.Next(choices.Count)];
+        var accessNumber = choices[random.Next(choices.Count)];
         previousDemoAccessNumber = accessNumber;
-        var serialNumber = serialNumbers.Count == 0 ? null : serialNumbers[random.Next(serialNumbers.Count)];
+        var serialNumber = serialNumbers[random.Next(serialNumbers.Count)];
 
         // Discovery queries are deliberately isolated from the write context. A
         // missing legacy ZKDevices column or unavailable directory must not leave
@@ -69,23 +74,28 @@ public sealed class DeviceLogWriter(
         await using var db = await factory.CreateDbContextAsync(token);
         return await InsertAsync(db, accessNumber, serialNumber,
             DemoDeviceLogGenerator.LogTypes[random.Next(DemoDeviceLogGenerator.LogTypes.Length)],
-            "Test",
-            EventCodes[random.Next(EventCodes.Length)],
-            EventAddresses[random.Next(EventAddresses.Length)],
-            VerifyModes[random.Next(VerifyModes.Length)], token);
+            "TEST", "20", "1", "200", token);
     }
 
-    private async Task<List<string>> ReadRecentAccessNumbersAsync(CancellationToken token)
+    private async Task<List<string>> ReadCombinedAccessNumbersAsync(CancellationToken token)
     {
         try
         {
-            await using var db = await factory.CreateDbContextAsync(token);
-            return await db.DeviceLogs.AsNoTracking()
-                .Where(x => !x.IsDeleted && x.AccessNumber != null && x.AccessNumber != "")
-                .OrderByDescending(x => x.TimeLogStamp)
-                .Select(x => x.AccessNumber!)
-                .Take(100)
-                .ToListAsync(token);
+            await using var staff = await staffFactory.CreateDbContextAsync(token);
+            if (staff.Database.IsSqlServer())
+            {
+                var connection = staff.Database.GetDbConnection();
+                await connection.OpenAsync(token);
+                await using var command = connection.CreateCommand();
+                command.CommandText = PersonnelSql;
+                await using var reader = await command.ExecuteReaderAsync(token);
+                var accessNumberOrdinal = reader.GetOrdinal("AccessNumber");
+                var accessNumbers = new List<string>();
+                while (await reader.ReadAsync(token))
+                    if (!reader.IsDBNull(accessNumberOrdinal) && reader.GetString(accessNumberOrdinal) is { Length: > 0 } accessNumber)
+                        accessNumbers.Add(accessNumber);
+                return accessNumbers;
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -93,10 +103,16 @@ public sealed class DeviceLogWriter(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception,
-                "Unable to read existing DeviceLogs personnel; continuing demo insert without that fallback");
-            return [];
+            logger.LogWarning(exception, "Unable to execute the combined STAFF/STUDENT personnel query; trying the individual configured databases");
         }
+
+        // SQLite test/demo stores and installations on different SQL Server
+        // instances cannot execute a three-part cross-database query. Preserve
+        // the same UNION semantics through the two configured contexts.
+        return (await ReadAccessNumbersAsync(staffFactory, "STAFF", token))
+            .Concat(await ReadAccessNumbersAsync(studentFactory, "STUDENT", token))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<List<string>> ReadSerialNumbersAsync(CancellationToken token)
@@ -117,7 +133,7 @@ public sealed class DeviceLogWriter(
         catch (Exception exception)
         {
             logger.LogWarning(exception,
-                "Unable to read ZKDevices; continuing demo insert without a device reference");
+                "Unable to read ZKDevices; demo insertion will be skipped");
             return [];
         }
     }
@@ -142,7 +158,7 @@ public sealed class DeviceLogWriter(
         catch (Exception exception)
         {
             logger.LogWarning(exception,
-                "Unable to read configured {DirectorySource} database; falling back to existing DeviceLogs personnel",
+                "Unable to read configured {DirectorySource} database",
                 source);
             return [];
         }
@@ -186,13 +202,9 @@ public sealed class DeviceLogWriter(
         var now = DateTimeOffset.Now;
 
         // DeviceLogs is an existing Access Control table rather than a schema
-        // managed by this application. Set every mapped value explicitly, but let
-        // EF build the INSERT. The previous SQL Server-only command hard-coded the
-        // complete column list; deployments whose DeviceLogs schema predates one
-        // of the optional columns rejected the whole insert with "invalid column".
-        // EF uses the configured model and keeps the write path identical for the
-        // production and demo providers.
-        // Use the application clock for the inserted event as well as the poller.
+        // managed by this application. Set every required and nullable value
+        // explicitly and let EF build the parameterized INSERT. Use the application
+        // clock for the inserted event as well as the poller.
         // A SQL Server clock behind the web server would otherwise place a brand
         // new row behind the poller's cursor, making the insert invisible forever.
         var row = new DeviceLog

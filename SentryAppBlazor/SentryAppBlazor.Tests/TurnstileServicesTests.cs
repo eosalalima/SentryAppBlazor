@@ -40,7 +40,7 @@ public sealed class TurnstileServicesTests
     [Fact] public void Seen_ids_are_bounded_and_expire_oldest() { var c=new RecentlySeenIds(10); var first=Guid.NewGuid(); c.Add(first); for(var i=0;i<10;i++)c.Add(Guid.NewGuid()); Assert.Equal(10,c.Count); Assert.True(c.Add(first)); }
     [Fact] public void Feed_places_new_entry_in_spotlight_immediately() { var s=new TurnstileLogState(); var id=Guid.NewGuid(); Assert.True(s.Add(Entry(id))); Assert.Equal(id,s.Spotlight?.TimeLogId); Assert.Empty(s.Entries); }
     [Fact]
-    public void Feed_queues_polled_rows_without_replacing_the_current_spotlight()
+    public void Feed_immediately_spotlights_the_newest_polled_row()
     {
         var state = new TurnstileLogState();
         var first = Guid.NewGuid();
@@ -49,7 +49,7 @@ public sealed class TurnstileServicesTests
         Assert.True(state.Add(Entry(first)));
         Assert.True(state.Add(Entry(second)));
 
-        Assert.Equal(first, state.Spotlight?.TimeLogId);
+        Assert.Equal(second, state.Spotlight?.TimeLogId);
         Assert.Empty(state.Entries);
     }
     [Fact] public void Feed_rejects_duplicate_ids() { var s=new TurnstileLogState(); var item=Entry(Guid.NewGuid()); Assert.True(s.Add(item)); Assert.False(s.Add(item)); }
@@ -120,7 +120,7 @@ public sealed class TurnstileServicesTests
         Assert.Equal(typeof(ILogger<DeviceLogWriter>), constructor.GetParameters()[3].ParameterType);
     }
     [Fact]
-    public async Task Demo_writer_inserts_a_persisted_device_log()
+    public async Task Demo_writer_requires_a_directory_personnel()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
         var options = new DbContextOptionsBuilder<AccessControlDbContext>()
@@ -147,19 +147,11 @@ public sealed class TurnstileServicesTests
             var firstId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
             var secondId = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
 
-            Assert.NotNull(firstId);
-            Assert.NotNull(secondId);
+            Assert.Null(firstId);
+            Assert.Null(secondId);
             await using var verification = new AccessControlDbContext(options);
             var rows = await verification.DeviceLogs.OrderBy(log => log.TimeLogStamp).ToListAsync();
-            Assert.Equal(2, rows.Count);
-            Assert.All(rows, row => Assert.Null(row.AccessNumber));
-            Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
-            Assert.All(rows, row => Assert.Contains(row.LogType, DemoDeviceLogGenerator.LogTypes));
-            Assert.All(rows, row => Assert.Equal("Test", row.CardNo));
-            Assert.All(rows, row => Assert.Contains(row.Event, DeviceLogWriter.EventCodes));
-            Assert.All(rows, row => Assert.Contains(row.EventAddress, DeviceLogWriter.EventAddresses));
-            Assert.All(rows, row => Assert.Contains(row.VerifyMode, DeviceLogWriter.VerifyModes));
-            Assert.All(rows, row => Assert.Equal(0, row.Index));
+            Assert.Empty(rows);
         }
         finally
         {
@@ -197,6 +189,16 @@ public sealed class TurnstileServicesTests
                 new[] { "STAFF-1", "STUDENT-1" },
                 rows.Select(row => row.AccessNumber).Order(StringComparer.Ordinal).ToArray());
             Assert.All(rows, row => Assert.Equal("TEST-GATE", row.DeviceSerialNumber));
+            Assert.All(rows, row => Assert.Equal("TEST", row.CardNo));
+            Assert.All(rows, row => Assert.Equal("20", row.Event));
+            Assert.All(rows, row => Assert.Equal("1", row.EventAddress));
+            Assert.All(rows, row => Assert.Equal("200", row.VerifyMode));
+            Assert.All(rows, row => Assert.Equal(0, row.Index));
+            Assert.All(rows, row => Assert.Null(row.SiteCode));
+            Assert.All(rows, row => Assert.Null(row.LinkId));
+            Assert.All(rows, row => Assert.Null(row.HasMask));
+            Assert.All(rows, row => Assert.Null(row.Temperature));
+            Assert.All(rows, row => Assert.Null(row.IsNotified));
         }
         finally
         {
@@ -253,14 +255,14 @@ public sealed class TurnstileServicesTests
         var deviceLog = context.Model.FindEntityType(typeof(DeviceLog));
 
         Assert.NotNull(deviceLog);
-        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.SiteCode)));
-        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.LinkId)));
-        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.HasMask)));
-        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.Temperature)));
-        Assert.Null(deviceLog.FindProperty(nameof(DeviceLog.IsNotified)));
+        Assert.NotNull(deviceLog.FindProperty(nameof(DeviceLog.SiteCode)));
+        Assert.NotNull(deviceLog.FindProperty(nameof(DeviceLog.LinkId)));
+        Assert.NotNull(deviceLog.FindProperty(nameof(DeviceLog.HasMask)));
+        Assert.NotNull(deviceLog.FindProperty(nameof(DeviceLog.Temperature)));
+        Assert.NotNull(deviceLog.FindProperty(nameof(DeviceLog.IsNotified)));
     }
     [Fact]
-    public async Task Demo_writer_inserts_with_only_an_access_control_connection()
+    public async Task Demo_writer_does_not_insert_without_a_directory_personnel()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
         var accessControlOptions = new DbContextOptionsBuilder<AccessControlDbContext>()
@@ -285,11 +287,9 @@ public sealed class TurnstileServicesTests
 
             var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
 
-            Assert.NotNull(id);
+            Assert.Null(id);
             await using var verification = new AccessControlDbContext(accessControlOptions);
-            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
-            Assert.Null(row.AccessNumber);
-            Assert.Equal("REAL-GATE", row.DeviceSerialNumber);
+            Assert.Empty(await verification.DeviceLogs.ToListAsync());
         }
         finally
         {
@@ -297,7 +297,7 @@ public sealed class TurnstileServicesTests
         }
     }
     [Fact]
-    public async Task Demo_writer_still_inserts_when_optional_source_queries_fail()
+    public async Task Demo_writer_does_not_insert_when_required_source_queries_fail()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"sentry-writer-{Guid.NewGuid():N}.db");
         var missingDatabasePath = Path.Combine(Path.GetTempPath(), $"sentry-missing-{Guid.NewGuid():N}.db");
@@ -323,11 +323,9 @@ public sealed class TurnstileServicesTests
 
             var id = await writer.InsertDemoAsync(new Random(7), CancellationToken.None);
 
-            Assert.NotNull(id);
+            Assert.Null(id);
             await using var verification = new AccessControlDbContext(validOptions);
-            var row = await verification.DeviceLogs.SingleAsync(log => log.Id == id);
-            Assert.Null(row.AccessNumber);
-            Assert.Null(row.DeviceSerialNumber);
+            Assert.Empty(await verification.DeviceLogs.ToListAsync());
         }
         finally
         {

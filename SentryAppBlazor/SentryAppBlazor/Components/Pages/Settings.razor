@@ -10,7 +10,7 @@
 </header>
 <div class="settings-page">
     <div class="settings-title"><span class="eyebrow">SYSTEM ADMINISTRATION</span><h1>Monitoring Settings</h1><p>Update monitoring behavior and save changes to <code>sentryconfig.json</code>.</p></div>
-    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>The monitor page requires an access number from STAFF/STUDENT <code>MyDataTable.Field15</code> and a serial from <code>ZKDevices</code>. Generation occurs only while monitoring is started in Demo mode.</span></div>
+    <div class="notice"><strong>Demo mode writes to DeviceLogs</strong><span>Each event randomly selects an access number from STAFF/STUDENT <code>MyDataTable.Field15</code>, a serial from <code>ZKDevices</code>, and an event direction. Generation occurs only while monitoring is started in Demo mode.</span></div>
 
     <EditForm EditContext="editContext" FormName="monitoring-settings">
         <DataAnnotationsValidator />
@@ -35,7 +35,7 @@
         <section class="settings-card"><h2>Display & photos</h2><div class="form-grid">
             <label>Spotlight duration (ms)<input type="number" min="1" max="300000" @bind="Model.HighlightDurationMs" /><ValidationMessage For="() => Model.HighlightDurationMs" /></label>
             <label>Feed retention (seconds)<input type="number" min="1" max="3600" @bind="Model.FeedItemTtlSeconds" /><ValidationMessage For="() => Model.FeedItemTtlSeconds" /></label>
-            <label>Maximum items/category<input type="number" min="1" max="100" @bind="Model.MaximumFeedItemsPerCategory" /><ValidationMessage For="() => Model.MaximumFeedItemsPerCategory" /></label>
+            <label>Maximum items/category<input type="number" min="1" max="10" @bind="Model.MaximumFeedItemsPerCategory" /><ValidationMessage For="() => Model.MaximumFeedItemsPerCategory" /></label>
             <label class="wide">Protected photo directory<input @bind="Model.ExternalPhotoDirectory" /><small>The browser receives only <code>/photos/&#123;id&#125;</code> URLs.</small></label></div>
         </section>
         <section class="settings-card"><h2>Notifications</h2><div class="form-grid">
