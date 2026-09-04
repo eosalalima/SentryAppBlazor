@@ -1,27 +1,50 @@
-# Turnstile monitoring architecture and operations
+# Turnstile monitoring implementation
 
-The Interactive Server UI reads only `TurnstileLogState`. `TurnstileLogPollingWorker` creates a fresh Access Control context per cycle, performs the ordered left-join query with a `(TimeLogStamp, Id)` watermark, enriches each result using independent STAFF and STUDENT contexts, attempts the replaceable SMS transport, and publishes the event even when lookup or delivery fails. The feed and recently-seen-ID cache are bounded and thread safe.
+## Architecture
 
-`DemoDeviceLogGenerator` is an application-level hosted service. While Demo mode is selected, it creates a clearly marked sample record directly in Access Control `dbo.DeviceLogs` immediately when the application starts and then at the configured interval. It does not depend on the monitor page's Start/Stop control and does not create an in-memory substitute for a database record.
+The .NET 10 application is an Interactive Server Blazor Web App. A singleton `TurnstilePollingController` owns the idempotent running state, Demo/Live mode and immutable demo selection. The two hosted services are created once by DI: `TurnstileLogPollingWorker` is the only reader in both modes, while `DemoDeviceLogGenerator` can write only during an active Demo session. Demo rows therefore reach `TurnstileLogState` only after a database round trip.
 
-## Configuration and demo operation
+The existing monitoring layout and the reference-inspired two-column “history plus current event” flow were retained. The upstream reference repository could not be fetched in this build environment (the HTTPS proxy returned 403), so schema and behavior decisions were also checked against the target's existing EF mappings, prior implementation report, and tests rather than copied files.
 
-Supply secrets with user-secrets, a secret store, or environment variables (`ConnectionStrings__AccessControlDb`, `ConnectionStrings__PersonnelsDb`, `ConnectionStrings__StaffDb`, and `ConnectionStrings__StudentDb`). Committed appsettings values are intentionally blank. Access Control supplies the live `DeviceLogs` source and receives demo `DeviceLogs`; Personnels supplies identity; STAFF and STUDENT supply directory/mobile data. All four settings are resolved at operation time, so values applied in the settings page do not require an application restart. `Monitoring:OperatingMode` is the sole mode switch, and `Monitoring:DemoLogIntervalSeconds` sets the fixed delay between inserts.
+## Configuration
 
-To generate records, choose **Demo**, set the demo log interval, and apply the settings. The generator builds its personnel pool from the configured STAFF and STUDENT directory databases, then adds access numbers from the 100 newest valid `DeviceLogs` rows as a fallback. It chooses an active device from Access Control when available. Directory, existing-log, and device discovery queries are optional: if any source is empty or unavailable, the generator leaves the corresponding nullable reference unset and still attempts the insert through a fresh Access Control context. This isolation prevents a failed lookup from poisoning the write context.
+`Monitoring` supports the following restart-free persisted values in `sentryconfig.json` (the workers read the store each cycle):
 
-Each generated row receives a new GUID and application-server timestamp, an `IN` or `OUT` log type, the `Test` card marker, and values from the supported event, address, and verification-mode sets. The hosted generator writes one row immediately after the application observes Demo mode and waits at least one second between subsequent inserts. Switching away from Demo mode stops inserts; the monitor Start/Stop control only affects polling and display.
+| Setting | Default | Purpose |
+| --- | ---: | --- |
+| `Mode` | `Demo` | Initial UI mode (`Demo` or `Live`) |
+| `PollingIntervalMs` | `500` | Poll timer period |
+| `StartupLookbackSeconds` | `3` | Cursor recovery window on every start |
+| `MaximumRowsPerPoll` | `20` | Ordered SQL batch size |
+| `DemoMinimumDelaySeconds` | `1` | Minimum random demo delay |
+| `DemoMaximumDelaySeconds` | `10` | Maximum inclusive random demo delay |
+| `HighlightDurationMs` | `5000` | Spotlight duration per event |
+| `FeedItemTtlSeconds` | `10` | Recent-feed lifetime after spotlight |
+| `MaximumFeedItemsPerCategory` | `10` | Independent IN and OUT capacity |
+| `EnableFlowDiagnostics` | `false` | Detailed flow logging |
+| `ExternalPhotoDirectory` | empty | Protected directory behind `/photos` |
 
-The same write service is exposed for explicit records at `POST /api/device-logs`. Supply `accessNumber`, `deviceSerialNumber`, `logType` (`IN` or `OUT`), and `cardNo`; a successful request returns `201 Created` with the new row ID. Validation failures return `400`, while database failures remain server errors and are logged by the host.
+Connection strings remain blank in source. Configure `AccessControlDb`, `StaffDb`, `StudentDb`, and `PersonnelsDb` in Monitoring Settings, environment variables, or user-secrets. Applying settings does not require an application restart.
 
-## SQL permissions
+## Database assumptions
 
-Use separate least-privilege identities where possible. Monitoring needs `SELECT` on Access Control `dbo.DeviceLogs` and `dbo.ZKDevices`, plus `SELECT` on Personnels `dbo.Personnels`; lookup needs `SELECT` on each directory's `dbo.MyDataTable`. Demo writing needs only `INSERT` on Access Control `dbo.DeviceLogs`. Do not grant schema modification, broad database roles, or directory writes.
+* `dbo.DeviceLogs.Id` is a GUID and `TimeLogStamp`/`DateCreated` are SQL Server `datetimeoffset`-compatible values. SQL Server compares offsets by UTC instant; cursors use `DateTimeOffset` and initialize from UTC.
+* The stable cursor is `(TimeLogStamp, Id)`, with filtering and ascending ordering performed by the database. A 100-batch guard bounds immediate backlog draining.
+* The production-compatible mapping intentionally omits optional `DeviceLogs` columns known to be absent in older installations. No migration or schema mutation is performed.
+* Demo access numbers must exist in either STAFF or STUDENT `dbo.MyDataTable.Field15`; demo devices must be active rows in Access Control `dbo.ZKDevices`. Existing target architecture keeps `Personnels` behind its separately configurable `PersonnelsDb` context for names and photo IDs.
+* Log categories are centralized as `IN`, `OUT`, and `BREAK OUT`; OUT and BREAK OUT share the outgoing feed.
+* Application-generated timestamps use local `DateTimeOffset`; cursor comparisons are instant-safe, and the UI calls `ToLocalTime()` for display.
+* Missing optional enrichment never suppresses an event. SMS transport remains deliberately deferred; the registered implementation reports that transport is not configured rather than fabricating success.
 
-## Run and verify
+## Operations and security
 
-Install the .NET 10 SDK, then run `dotnet restore SentryAppBlazor/SentryAppBlazor.slnx`, `dotnet format SentryAppBlazor/SentryAppBlazor.slnx --verify-no-changes`, `dotnet build SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-restore`, and `dotnet test SentryAppBlazor/SentryAppBlazor.slnx -c Release --no-build`. Start with `dotnet run --project SentryAppBlazor/SentryAppBlazor/SentryAppBlazor.csproj`. SQL transient errors are logged and retried on later hosted-service cycles; cancellation is propagated through delays, EF calls, and SMS calls.
+Start resets the cursor and activates polling. Demo also validates and inserts the selected source values; Live never invokes demo insertion. Stop makes both workers idle, and repeated commands are no-ops. Spotlight and feed queues, processed IDs, FIFO eviction, and expiry are lock-protected; callbacks are raised outside locks and Blazor dispatches renders through `InvokeAsync`.
 
-## Database-backed demo
+Photo URLs never reveal the configured directory. The catch-all `/photos/{photoId}` endpoint rejects traversal/rooted/separator identifiers, allows only JPEG, PNG, GIF, WebP, and SVG extensions, verifies the canonical path remains beneath the configured root, and falls back to the application-owned SVG.
 
-A fresh checkout does not create or seed a local database. Demo mode uses the connection strings saved in Monitoring Settings and writes generated records directly to the configured Access Control `dbo.DeviceLogs` table; it never replaces those settings with a local connection.
+## Outstanding work
+
+* Validate all EF column types and directory-field semantics against each deployment before production rollout; no live SQL Server was available here.
+* Confirm whether `Personnels` resides in Access Control or a dedicated database at the deployment site; the target already models it separately.
+* Replace the no-op `ISmsSender` in a later phase if SMS delivery is approved. Keep transmission outside UI components and preferably behind its own durable worker/outbox.
+* Consider cached device/directory reference data if production volume makes the current batched lookups material.

@@ -40,6 +40,7 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var timerInterval = 0;
+        logger.LogInformation("Turnstile polling worker started");
         try
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -67,7 +68,16 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
                         resetRequested = false;
                     }
 
-                    await PollOnceAsync(options, stoppingToken);
+                    var batches = 0;
+                    int count;
+                    do
+                    {
+                        count = await PollOnceAsync(options, stoppingToken);
+                        batches++;
+                    }
+                    while (controller.IsActive && count == options.MaxRowsPerPoll && batches < 100);
+                    if (batches == 100)
+                        logger.LogWarning("Polling backlog drain reached its 100-batch safety limit");
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
                 catch (Exception exception)
@@ -82,10 +92,10 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { timer?.Dispose(); timer = null; }
+        finally { timer?.Dispose(); timer = null; logger.LogInformation("Turnstile polling worker stopped"); }
     }
 
-    internal async Task PollOnceAsync(TurnstilePollingOptions options, CancellationToken token)
+    internal async Task<int> PollOnceAsync(TurnstilePollingOptions options, CancellationToken token)
     {
         var now = time.GetUtcNow();
         foreach (var expired in seen.Where(item => now - item.Value >= TimeSpan.FromMinutes(1)).Select(item => item.Key).ToArray())
@@ -95,18 +105,19 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         var monitoring = settings.Current;
         var deviceId = string.IsNullOrWhiteSpace(monitoring.DeviceId) ? "all" : monitoring.DeviceId.Trim();
         var maximumRows = Math.Clamp(options.MaxRowsPerPoll, 1, 500);
+        if (options.FlowDiagnosticsEnabled)
+            logger.LogDebug("Polling DeviceLogs after {CursorTimestamp}/{CursorId}", lastTimestamp, lastId);
         var candidates = await db.DeviceLogs.AsNoTracking()
-            .Where(x => !x.IsDeleted && x.TimeLogStamp >= lastTimestamp &&
+            .Where(x => !x.IsDeleted &&
+                        (x.TimeLogStamp > lastTimestamp ||
+                         (x.TimeLogStamp == lastTimestamp && x.Id.CompareTo(lastId) > 0)) &&
                         (deviceId.ToLower() == "all" || x.DeviceSerialNumber == deviceId))
             .OrderBy(x => x.TimeLogStamp).ThenBy(x => x.Id)
-            .Take(maximumRows * 2)
+            .Take(maximumRows)
             .ToListAsync(token);
         var deviceNames = await db.ZkDevices.AsNoTracking().Where(x => !x.IsDeleted)
             .ToDictionaryAsync(x => x.SerialNumber, x => x.Name, token);
         var rows = candidates
-            .Where(x => x.TimeLogStamp > lastTimestamp ||
-                        (x.TimeLogStamp == lastTimestamp && x.Id.CompareTo(lastId) > 0))
-            .Take(maximumRows)
             .Select(x => new TurnstileLogRow
             {
                 TimeLogId = x.Id, TimeLogStamp = x.TimeLogStamp, LogType = x.LogType,
@@ -162,6 +173,9 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
             Advance(row);
             if (options.FlowDiagnosticsEnabled) logger.LogDebug("Processed new log {LogId}", row.TimeLogId);
         }
+        if (options.FlowDiagnosticsEnabled)
+            logger.LogDebug("DeviceLogs poll completed with {RowCount} rows; cursor is {CursorTimestamp}/{CursorId}", rows.Count, lastTimestamp, lastId);
+        return rows.Count;
     }
 
     private async Task ProcessAsync(TurnstileLogRow row, CancellationToken token)
@@ -205,6 +219,8 @@ public sealed class TurnstileLogPollingWorker : BackgroundService
         logger.LogInformation("Turnstile polling cursor initialized at {Cursor}", lastTimestamp);
     }
     internal (DateTimeOffset Timestamp, Guid Id) Cursor => (lastTimestamp, lastId);
+    public static bool IsAfterCursor(DeviceLog row, DateTimeOffset timestamp, Guid id) =>
+        row.TimeLogStamp > timestamp || (row.TimeLogStamp == timestamp && row.Id.CompareTo(id) > 0);
 
     public override void Dispose()
     {

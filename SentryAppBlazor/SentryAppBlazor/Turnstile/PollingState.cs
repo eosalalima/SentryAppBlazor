@@ -3,14 +3,44 @@ using SentryAppBlazor.Services;
 namespace SentryAppBlazor.Turnstile;
 public sealed class TurnstilePollingController
 {
+    private readonly ILogger<TurnstilePollingController>? logger;
     private readonly object gate = new();
     private volatile bool active;
     private long activeSession;
     private TaskCompletionSource activeSignal = CreateSignal();
+    private MonitoringMode mode = MonitoringMode.Demo;
+    private DemoSelection selection = new(null, null, "IN");
+    private string? statusMessage;
 
     public bool IsActive => active;
     public long ActiveSession => Interlocked.Read(ref activeSession);
+    public MonitoringMode Mode { get { lock (gate) return mode; } }
+    public DemoSelection Selection { get { lock (gate) return selection; } }
+    public string? StatusMessage { get { lock (gate) return statusMessage; } }
     public event Action<bool>? StatusChanged;
+    public event Action? Changed;
+
+    public TurnstilePollingController(ILogger<TurnstilePollingController>? logger = null) => this.logger = logger;
+
+    public bool TryConfigure(MonitoringMode newMode, DemoSelection? newSelection = null)
+    {
+        lock (gate)
+        {
+            if (active) return false;
+            mode = newMode;
+            if (newSelection is not null) selection = newSelection;
+            statusMessage = null;
+        }
+        logger?.LogInformation("Monitoring mode changed to {MonitoringMode}", newMode);
+        Changed?.Invoke();
+        return true;
+    }
+
+    public void ReportStatus(string? message)
+    {
+        lock (gate) statusMessage = message;
+        Changed?.Invoke();
+    }
 
     public bool TryStart()
     {
@@ -24,6 +54,8 @@ public sealed class TurnstilePollingController
             changed = StatusChanged;
         }
         changed?.Invoke(true);
+        logger?.LogInformation("Monitoring started in {MonitoringMode} mode", Mode);
+        Changed?.Invoke();
         return true;
     }
 
@@ -38,6 +70,8 @@ public sealed class TurnstilePollingController
             changed = StatusChanged;
         }
         changed?.Invoke(false);
+        logger?.LogInformation("Monitoring stopped");
+        Changed?.Invoke();
         return true;
     }
 
@@ -55,7 +89,10 @@ public sealed class TurnstilePollingController
     private static TaskCompletionSource CreateSignal() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 }
-public sealed class TurnstileLogState
+public enum MonitoringMode { Demo, Live }
+public sealed record DemoSelection(string? AccessNumber, string? DeviceSerialNumber, string LogType);
+
+public sealed class TurnstileLogState : IDisposable
 {
     private readonly object gate = new();
     private readonly LinkedList<TurnstileLogEntry> incoming = [];
@@ -63,11 +100,14 @@ public sealed class TurnstileLogState
     private readonly Queue<TurnstileLogEntry> waitingForSpotlight = [];
     private readonly RecentlySeenIds ids = new(2000);
     private readonly MonitoringSettingsStore? settings;
+    private readonly Func<MonitoringOptions>? optionsProvider;
     private readonly TimeProvider time;
     private TurnstileLogEntry? spotlight;
+    private readonly CancellationTokenSource lifetime = new();
 
     public TurnstileLogState() : this(null, TimeProvider.System) { }
     public TurnstileLogState(MonitoringSettingsStore? settings, TimeProvider time) { this.settings=settings; this.time=time; }
+    public TurnstileLogState(TimeProvider time, Func<MonitoringOptions> optionsProvider) { this.time=time; this.optionsProvider=optionsProvider; }
     public event Action? Changed;
     public TurnstileLogEntry? Spotlight { get { lock(gate) return spotlight; } }
     public IReadOnlyList<TurnstileLogEntry> InEntries => Snapshot(incoming);
@@ -121,13 +161,15 @@ public sealed class TurnstileLogState
                 current = spotlight;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.HighlightDisplayDuration ?? 3000), time);
+            try { await Task.Delay(TimeSpan.FromMilliseconds(CurrentOptions.HighlightDurationMs), time, lifetime.Token); }
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
 
             lock(gate)
             {
                 var history=IsIn(current.LogType)?incoming:outgoing;
                 history.AddFirst(current);
-                while(history.Count>10) history.RemoveLast();
+                var maximum = CurrentOptions.MaximumFeedItemsPerCategory;
+                while(history.Count>maximum) history.RemoveLast();
                 spotlight = waitingForSpotlight.TryDequeue(out var next) ? next : null;
             }
             NotifyChanged();
@@ -137,7 +179,8 @@ public sealed class TurnstileLogState
 
     private async Task ExpireFromHistoryAsync(TurnstileLogEntry entry)
     {
-        await Task.Delay(TimeSpan.FromMilliseconds(settings?.Current.FeedRetentionDuration ?? 10000), time);
+        try { await Task.Delay(TimeSpan.FromSeconds(CurrentOptions.FeedItemTtlSeconds), time, lifetime.Token); }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
         lock(gate)
         {
             var removed=RemoveById(incoming,entry.TimeLogId)|RemoveById(outgoing,entry.TimeLogId);
@@ -150,6 +193,8 @@ public sealed class TurnstileLogState
     private static bool RemoveOlder(LinkedList<TurnstileLogEntry> queue,DateTimeOffset cutoff) { var changed=false; for(var n=queue.First;n is not null;) { var next=n.Next;if(n.Value.TimeLogStamp<cutoff){queue.Remove(n);changed=true;}n=next;}return changed; }
     private static bool RemoveById(LinkedList<TurnstileLogEntry> queue,Guid id) { for(var n=queue.First;n is not null;n=n.Next)if(n.Value.TimeLogId==id){queue.Remove(n);return true;}return false; }
     private void NotifyChanged() { var handlers=Changed; if(handlers is not null) _=Task.Run(()=>{foreach(Action h in handlers.GetInvocationList())try{h();}catch{}}); }
+    private MonitoringOptions CurrentOptions => optionsProvider?.Invoke() ?? settings?.Current ?? new MonitoringOptions();
+    public void Dispose() { lifetime.Cancel(); lifetime.Dispose(); }
 }
 public sealed class RecentlySeenIds
 {

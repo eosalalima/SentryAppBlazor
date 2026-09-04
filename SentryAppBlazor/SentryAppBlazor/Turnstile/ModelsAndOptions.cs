@@ -22,16 +22,29 @@ public sealed class TurnstilePollingOptions
             IntervalMs = monitoring?.PollingInterval ?? Valid(section["IntervalMs"] ?? section["IntervalsMs"], 50, 60000, DefaultIntervalMs),
             LookbackSecondsOnStart = monitoring?.LookbackSecondsOnStart ?? Valid(section["LookbackSecondsOnStart"] ?? section["LookbackSecondsOntart"] ?? section["InitialLookbackSeconds"], 0, 3600, DefaultLookbackSeconds),
             MaxRowsPerPoll = monitoring?.MaxRowsPerPoll ?? Valid(section["MaxRowsPerPoll"], 1, 500, DefaultMaxRows),
-            FlowDiagnosticsEnabled = bool.TryParse(section["FlowDiagnosticsEnabled"], out var diagnostics) && diagnostics
+            FlowDiagnosticsEnabled = monitoring?.EnableFlowDiagnostics ??
+                (bool.TryParse(section["FlowDiagnosticsEnabled"], out var diagnostics) && diagnostics)
         };
     }
 
     private static int Valid(string? value, int minimum, int maximum, int fallback) =>
         int.TryParse(value, out var parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
 }
-public sealed record TurnstileLogEntry(Guid TimeLogId, DateTimeOffset TimeLogStamp, string? LogType, string? AccessNumber, string PersonnelName, string PhotoUrl, string? DeviceSerialNumber, string DeviceName, string? VerifyMode, string? Event, string? EventAddress, string SmsStatusMessage);
+public sealed record TurnstileLogEntry(Guid TimeLogId, DateTimeOffset TimeLogStamp, string? LogType, string? AccessNumber, string PersonnelName, string PhotoUrl, string? DeviceSerialNumber, string DeviceName, string? VerifyMode, string? Event, string? EventAddress, string SmsStatusMessage, string PersonnelSource = "Unknown");
 public readonly record struct SmsSendResult(bool Success, string? Message = null);
 public interface ISmsSender { Task<SmsSendResult> SendAsync(string mobileNumber, string message, CancellationToken cancellationToken); }
 public sealed class LoggingSmsSender(ILogger<LoggingSmsSender> logger) : ISmsSender { public Task<SmsSendResult> SendAsync(string mobileNumber, string message, CancellationToken cancellationToken) { logger.LogInformation("SMS transport is not configured; recipient ending {Suffix}", mobileNumber.Length > 4 ? mobileNumber[^4..] : "****"); return Task.FromResult(new SmsSendResult(false, "transport not configured")); } }
 public interface IPhotoUrlBuilder { string Build(string? photoId); }
-public sealed class PhotoUrlBuilder : IPhotoUrlBuilder { public string Build(string? id) { if (string.IsNullOrWhiteSpace(id)) return "/img/avatar-placeholder.svg"; var safe = Path.GetFileName(id.Trim()); return safe == id.Trim() ? $"/photos/{Uri.EscapeDataString(safe)}" : "/img/avatar-placeholder.svg"; } }
+public sealed class PhotoUrlBuilder : IPhotoUrlBuilder
+{
+    public const string PlaceholderUrl = "/img/avatar-placeholder.svg";
+    public string Build(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return PlaceholderUrl;
+        var value = id.Trim();
+        var safe = Path.GetFileName(value);
+        return safe == value && !Path.IsPathRooted(value) && !value.Contains("..", StringComparison.Ordinal)
+            && value.IndexOfAny(['/', '\\']) < 0
+            ? $"/photos/{Uri.EscapeDataString(value)}" : PlaceholderUrl;
+    }
+}

@@ -28,7 +28,7 @@ builder.Services.AddSingleton<MonitoringSettingsStore>(); builder.Services.AddSi
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", createScopeForErrors: true); app.UseHsts(); }
 app.UseHttpsRedirection(); app.UseStaticFiles(); app.UseAntiforgery();
-app.MapGet("/photos/{photoId}", (string photoId, PhotoService photos) => photos.Get(photoId));
+app.MapGet("/photos/{**photoId}", (string photoId, PhotoService photos) => photos.Get(photoId));
 app.MapPost("/api/device-logs", async (
     DeviceLogInsertRequest request,
     DeviceLogWriter writer,
