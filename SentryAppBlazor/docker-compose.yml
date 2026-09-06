@@ -4,3 +4,8 @@ services:
     build:
       context: SentryAppBlazor
       dockerfile: Dockerfile
+    volumes:
+      - sentry-data-protection-keys:C:\app\data-protection-keys
+
+volumes:
+  sentry-data-protection-keys:
