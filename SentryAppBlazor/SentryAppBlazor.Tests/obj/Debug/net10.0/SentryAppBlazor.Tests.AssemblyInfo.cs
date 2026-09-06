@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SentryAppBlazor.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2b4e42d7cd449deafe3362d3755a43d0a54074f6")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+46d015aa490feab1267d3d34e543e7f5380438cb")]
 [assembly: System.Reflection.AssemblyProductAttribute("SentryAppBlazor.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SentryAppBlazor.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

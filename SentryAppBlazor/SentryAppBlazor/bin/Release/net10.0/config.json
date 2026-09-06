@@ -1,17 +1,15 @@
 {
   "Monitoring": {
-    "OperatingMode": "Demo",
-    "DemoLogIntervalSeconds": 10,
-    "DeviceId": "all",
-    "PhotosPath": "F:\\Projects\\Dr. Gloria D Lacson School\\Photos\\Photos",
-    "PollingInterval": 500,
-    "HighlightDisplayDuration": 5000,
-    "FeedRetentionDuration": 10000,
-    "LookbackSecondsOnStart": 3,
-    "MaxRowsPerPoll": 20,
-    "SmsEnabled": false,
-    "SmsComPort": "COM4",
-    "SmsTimeoutSeconds": 30,
-    "SmsRetryCount": 2
+    "Mode": "Demo",
+    "PollingIntervalMs": 500,
+    "StartupLookbackSeconds": 3,
+    "MaximumRowsPerPoll": 20,
+    "DemoMinimumDelaySeconds": 1,
+    "DemoMaximumDelaySeconds": 10,
+    "HighlightDurationMs": 5000,
+    "FeedItemTtlSeconds": 10,
+    "MaximumFeedItemsPerCategory": 10,
+    "EnableFlowDiagnostics": false,
+    "ExternalPhotoDirectory": ""
   }
 }
