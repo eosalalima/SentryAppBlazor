@@ -6,25 +6,27 @@
 @using SentryAppBlazor.Turnstile
 @using SentryAppBlazor.Components.Turnstile
 <PageTitle>Sentry · Turnstile Monitor</PageTitle>
-<header class="monitor-header"><a class="brand" href="/"><span class="brand-mark">DGL</span><span><strong>DR. GLORIA D. LACSON</strong><small>FOUNDATION COLLEGES</small></span></a><div class="header-center"><span class="eyebrow">TURNSTILE MONITORING SYSTEM</span><strong>@mode monitoring</strong></div><div class="header-actions"><span class="status-pill @(Controller.IsActive?"online":"")"><i></i>@(Controller.IsActive?"Monitoring active":"Stopped")</span><button type="button" class="control-button" disabled="@Controller.IsActive" @onclick="Start">▶ Start</button><button type="button" class="control-button" disabled="@(!Controller.IsActive)" @onclick="Stop">■ Stop</button><a class="icon-button" href="/settings" aria-label="Open monitoring settings" title="Monitoring settings">⚙</a></div></header>
-<section class="monitor-controls" aria-label="Monitoring controls">
-    <label>Mode<select @bind="mode" disabled="@Controller.IsActive"><option>Demo</option><option>Live</option></select></label>
-    @if (mode == "Demo") { <p class="control-hint">Personnel, device, and IN/OUT/BREAK OUT are selected randomly for every demo event.</p> }
-    @if (!string.IsNullOrWhiteSpace(message)) { <p class="save-message error" role="status">@message</p> }
+<header class="monitor-header"><a class="brand" href="/"><span class="brand-mark">DGL</span><span><strong>DR. GLORIA D. LACSON</strong><small>FOUNDATION COLLEGES</small></span></a><div class="header-center"><span class="eyebrow">TURNSTILE MONITORING SYSTEM</span><strong>@operatingMode monitoring</strong></div><div class="header-actions"><span class="status-pill @(Controller.IsActive?"online":"")"><i></i>@(Controller.IsActive?"Monitoring active":"Stopped")</span><button type="button" class="control-button" disabled="@Controller.IsActive" @onclick="Start">▶ Start</button><button type="button" class="control-button" disabled="@(!Controller.IsActive)" @onclick="Stop">■ Stop</button><a class="icon-button" href="/settings" aria-label="Open monitoring settings" title="Monitoring settings">⚙</a></div></header>
+@if (!string.IsNullOrWhiteSpace(message))
+{
+<section class="monitor-controls" aria-label="Monitoring status">
+    <p class="save-message error" role="status">@message</p>
 </section>
+}
 <section class="summary-strip"><div><span class="pulse-dot"></span><span><small>SYSTEM</small><b>@(Controller.IsActive?"ONLINE":"PAUSED")</b></span></div><div><small>MONITORED DEVICE</small><b>All Devices</b></div><div><small>RECENT EVENTS</small><b>@Feed.Entries.Count</b></div><div class="clock"><small>LOCAL TIME</small><b>@DateTime.Now.ToString("HH:mm")</b></div></section>
 <div class="monitor-grid">
     <section class="recent-panel"><div class="section-heading"><div><span class="eyebrow">LIVE HISTORY</span><h1>Recent Activity</h1></div></div><LogQueue Title="IN" Entries="@Feed.InEntries"/><LogQueue Title="OUT / BREAK OUT" Entries="@Feed.OutEntries"/></section>
     <SpotlightPanel Entry="@Feed.Spotlight"/>
 </div>
 @code {
-    private string mode = "Demo";
+    private string operatingMode = "Demo";
     private string? message;
-    protected override void OnInitialized() { mode = Settings.Current.Mode; Feed.Changed += Refresh; Controller.StatusChanged += StatusChanged; Controller.Changed += ControllerChanged; }
+    protected override void OnInitialized() { operatingMode = Settings.Current.Mode; Feed.Changed += Refresh; Controller.StatusChanged += StatusChanged; Controller.Changed += ControllerChanged; }
     private void Start()
     {
         message = null;
-        var selectedMode = string.Equals(mode, "Live", StringComparison.OrdinalIgnoreCase) ? MonitoringMode.Live : MonitoringMode.Demo;
+        operatingMode = Settings.Current.Mode;
+        var selectedMode = string.Equals(operatingMode, "Live", StringComparison.OrdinalIgnoreCase) ? MonitoringMode.Live : MonitoringMode.Demo;
         Controller.TryConfigure(selectedMode);
         Controller.TryStart();
     }

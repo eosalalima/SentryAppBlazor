@@ -12,7 +12,7 @@ The existing monitoring layout and the reference-inspired two-column “history 
 
 | Setting | Default | Purpose |
 | --- | ---: | --- |
-| `Mode` | `Demo` | Initial UI mode (`Demo` or `Live`) |
+| `Mode` | `Demo` | Monitoring operating mode (`Demo` or `Live`), selected in Monitoring Settings |
 | `PollingIntervalMs` | `500` | Poll timer period |
 | `StartupLookbackSeconds` | `3` | Cursor recovery window on every start |
 | `MaximumRowsPerPoll` | `20` | Ordered SQL batch size |
